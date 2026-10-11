@@ -1,0 +1,54 @@
+{
+  "pixel_count": 0,
+  "gpio_pin": 13,
+  "backend": "none",
+  "color_order": "RGB",
+  "default_brightness": 0.4,
+  "bind_host": "0.0.0.0",
+  "bind_port": 8765,
+  "layout_path": "/app/config/storage-layout.json",
+  "database_path": "/data/inventory.db",
+  "assistant_backend": "openai",
+  "agent_max_steps": 4,
+  "openai_model": "gpt-5.6-luna",
+  "llm": {
+    "provider": "openrouter",
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": "google/gemini-3.1-flash-lite",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "fallbacks": [
+      {
+        "provider": "cloudflare",
+        "base_url": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+        "model": "@cf/zai-org/glm-4.7-flash",
+        "api_key_env": "CLOUDFLARE_AI_API_TOKEN"
+      }
+    ]
+  },
+  "public_origin": "https://magpie.example.com",
+  "storage": {
+    "backend": "supabase",
+    "supabase_url": "https://PROJECT_REF.supabase.co",
+    "api_key_env": "SUPABASE_SERVICE_ROLE_KEY",
+    "workspace_id": "",
+    "photo_bucket": "magpie-photos"
+  },
+  "auth": {
+    "mode": "supabase",
+    "supabase_url": "https://PROJECT_REF.supabase.co",
+    "publishable_key_env": "SUPABASE_PUBLISHABLE_KEY",
+    "service_key_env": "SUPABASE_SERVICE_ROLE_KEY",
+    "workspace_id": "",
+    "multi_workspace": true,
+    "cache_seconds": 30
+  },
+  "edge": {
+    "mode": "workspace",
+    "target_device_id": "",
+    "machine_url": "",
+    "tokens_env": "MAGPIE_EDGE_TOKENS_JSON",
+    "command_ttl_seconds": 300,
+    "claim_timeout_seconds": 30,
+    "max_attempts": 5
+  }
+}

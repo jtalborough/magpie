@@ -1,0 +1,118 @@
+name: Check Supabase schema
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/check-supabase-schema.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/check-supabase-schema.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-supabase-schema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-install:
+    name: Apply complete migration history
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: magpie-schema-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: magpie-schema-test
+      PGDATABASE: postgres
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Bootstrap Supabase-owned schemas
+        run: |
+          psql --set ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          create schema auth;
+          create table auth.users (id uuid primary key);
+          create function auth.uid()
+          returns uuid
+          language sql
+          stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create schema storage;
+          create table storage.buckets (
+            id text primary key,
+            name text not null,
+            public boolean not null default false
+          );
+          SQL
+
+      - name: Apply complete migration history
+        run: |
+          set -euo pipefail
+          mapfile -t migrations < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+          if [ "${#migrations[@]}" -eq 0 ]; then
+            echo "No Supabase migrations found" >&2
+            exit 1
+          fi
+          for migration in "${migrations[@]}"; do
+            echo "Applying $(basename "$migration")"
+            psql --set ON_ERROR_STOP=1 --file "$migration"
+          done
+
+      - name: Verify final Magpie schema contract
+        run: |
+          psql --set ON_ERROR_STOP=1 --tuples-only --no-align <<'SQL'
+          do $$
+          declare
+            capabilities jsonb;
+          begin
+            select public.magpie_schema_capabilities() into capabilities;
+            if capabilities #>> '{schema}' <> 'magpie.supabase_capabilities.v1' then
+              raise exception 'unexpected capability schema: %', capabilities;
+            end if;
+            if capabilities #>> '{features,location_content_revisions}' <> 'true' then
+              raise exception 'location content revisions are unavailable: %', capabilities;
+            end if;
+            if to_regclass('public.active_guidance_states') is null then
+              raise exception 'active guidance state table is missing';
+            end if;
+          end
+          $$;
+          select 'public_tables=' || count(*)
+          from pg_tables
+          where schemaname = 'public';
+          select 'magpie_functions=' || count(*)
+          from pg_proc function
+          join pg_namespace namespace on namespace.oid = function.pronamespace
+          where namespace.nspname = 'public'
+            and function.proname like 'magpie_%';
+          SQL

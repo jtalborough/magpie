@@ -1,0 +1,53 @@
+[project]
+name = "searchable-storage-led"
+version = "0.1.0"
+description = "Agent-led software for organizing and finding physical storage."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "mcp==1.28.1",
+  "qrcode>=8.0",
+  "uvicorn[standard]>=0.30.0",
+]
+
+[project.optional-dependencies]
+edge = [
+  "Adafruit-Blinka-Raspberry-Pi5-Neopixel>=1.0.0rc2",
+  "adafruit-circuitpython-pixelbuf>=2.0.0",
+  "vosk==0.3.45; sys_platform == 'linux'",
+  "vosk==0.3.44; sys_platform == 'darwin'",
+  "webrtcvad-wheels>=2.0.14",
+]
+test = [
+  "httpx2>=0.28.0",
+  "pytest>=9.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[project.scripts]
+searchable-storage-led = "searchable_storage_led.cli:main"
+searchable-storage-voice = "searchable_storage_led.voice_daemon:main"
+searchable-storage-evals = "searchable_storage_led.eval_cli:main"
+searchable-storage-supabase-check = "searchable_storage_led.supabase_check:main"
+searchable-storage-migrate-supabase = "searchable_storage_led.supabase_migrate:main"
+searchable-storage-mcp = "searchable_storage_led.mcp_server:main"
+searchable-storage-edge = "searchable_storage_led.edge_worker:main"
+searchable-storage-screen = "searchable_storage_led.screen_bridge:main"
+searchable-storage-provision-workspace = "searchable_storage_led.workspace_provision:main"
+searchable-storage-backup = "searchable_storage_led.backup:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+searchable_storage_led = ["static/*"]

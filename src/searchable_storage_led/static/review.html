@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Magpie">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/product-shell.js" defer></script>
+  <script src="/auth.js"></script>
+  <title>Review - Magpie</title>
+  <style>
+    body { margin:0; }
+    .review-main { --page-content-max:1180px; }
+    .review-heading-actions { display:flex; align-items:center; gap:8px; }
+    .review-receipt { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:center; margin:0 0 18px; padding:13px 14px; border:1px solid color-mix(in srgb,var(--positive) 36%,var(--line)); border-radius:6px; background:var(--positive-soft); }
+    .review-receipt.error { border-color:color-mix(in srgb,var(--danger) 42%,var(--line)); background:var(--danger-soft); }
+    .review-receipt-copy { min-width:0; }
+    .review-receipt-copy strong, .review-receipt-copy span { display:block; }
+    .review-receipt-copy strong { font-size:13px; }
+    .review-receipt-copy span { margin-top:3px; color:var(--muted); font-size:12px; line-height:1.4; }
+    .review-receipt-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+    .review-receipt-actions button, .review-receipt-actions .button { min-height:44px; }
+    .review-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; margin-bottom:22px; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+    .review-metric { min-width:0; padding:15px 16px; border-right:1px solid var(--line); }
+    .review-metric:last-child { border-right:0; }
+    .review-metric strong { display:block; font-size:22px; line-height:1.15; }
+    .review-metric span { display:block; margin-top:4px; color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; }
+    .review-section { padding:22px 0; border-top:1px solid var(--line); }
+    .review-section:first-of-type { border-top:0; }
+    .review-section-head { display:flex; align-items:end; justify-content:space-between; gap:20px; margin-bottom:12px; }
+    .review-section-head h3 { margin:0; font-size:18px; }
+    .review-section-head p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.45; }
+    .review-count { flex:0 0 auto; color:var(--muted); font-size:12px; font-weight:700; }
+    .review-list { overflow:hidden; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+    .review-row { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:center; min-height:76px; padding:13px 14px; border-bottom:1px solid var(--line); }
+    .review-row:last-child { border-bottom:0; }
+    .review-row:hover { background:var(--surface-hover); }
+    .review-copy { min-width:0; }
+    .review-copy strong { display:block; font-size:14px; line-height:1.35; overflow-wrap:anywhere; }
+    .review-copy p { margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+    .review-detail { display:flex; flex-wrap:wrap; gap:5px 10px; margin-top:6px; color:var(--muted); font-size:11px; }
+    .review-tag { width:max-content; max-width:100%; padding:3px 6px; border-radius:4px; background:var(--warning-soft); color:var(--warning); font-size:9px; font-weight:800; text-transform:uppercase; }
+    .review-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+    .review-actions button, .review-actions .button { min-height:44px; }
+    .review-empty, .review-error { padding:22px; color:var(--muted); font-size:13px; line-height:1.45; }
+    .review-error { color:var(--danger); }
+    @media (max-width:680px) {
+      .review-main { padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+      .review-metrics { grid-template-columns:1fr; }
+      .review-metric { display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:10px; border-right:0; border-bottom:1px solid var(--line); }
+      .review-metric:last-child { border-bottom:0; }
+      .review-row { grid-template-columns:1fr; }
+      .review-actions { justify-content:flex-start; }
+      .review-actions button, .review-actions .button { flex:1 1 120px; }
+      .review-section-head { align-items:start; }
+      .review-receipt { grid-template-columns:1fr; }
+      .review-receipt-actions { justify-content:flex-start; }
+    }
+  </style>
+</head>
+<body class="product-app">
+  <header class="product-header">
+    <div class="product-brand"><span class="product-mark" aria-hidden="true">M</span><div class="product-title"><h1>Magpie</h1><span class="product-context" data-product-context>Review</span></div><nav class="product-nav" data-product-nav aria-label="Product views"></nav></div>
+    <div id="status" class="product-status" role="status">Loading review</div>
+  </header>
+  <main class="product-page-main review-main">
+    <div class="product-page-heading">
+      <div><h2>Review</h2><p>Resolve uncertain decisions and keep the physical storage map trustworthy.</p></div>
+      <div class="review-heading-actions"><button id="refreshReview" class="secondary" type="button">Refresh</button></div>
+    </div>
+    <div id="reviewReceipt" class="review-receipt" role="status" aria-live="polite" hidden>
+      <div class="review-receipt-copy"><strong id="reviewReceiptTitle"></strong><span id="reviewReceiptMessage"></span></div>
+      <div id="reviewReceiptActions" class="review-receipt-actions"></div>
+    </div>
+    <div id="reviewMetrics" class="review-metrics" aria-label="Review queue summary">
+      <div class="review-metric"><strong id="placeReviewCount">-</strong><span>Storage checks</span></div>
+      <div class="review-metric"><strong id="itemReviewCount">-</strong><span>Items to check</span></div>
+      <div class="review-metric"><strong id="learningReviewCount">-</strong><span>Learning decisions</span></div>
+      <div class="review-metric"><strong id="ruleReviewCount">-</strong><span>Rule issues</span></div>
+    </div>
+    <div id="reviewLoading" class="product-load-state" aria-live="polite"><strong>Loading review</strong><span>Checking storage confidence, uncertain items, learning decisions, and rule health.</span></div>
+    <div id="reviewQueues" hidden>
+      <section class="review-section" aria-labelledby="placeReviewTitle">
+        <div class="review-section-head"><div><h3 id="placeReviewTitle">Storage checks</h3><p>Check occupied places that are uncertain, overdue, or have never been physically verified.</p></div><span id="placeReviewLabel" class="review-count"></span></div>
+        <div id="placeReviewList" class="review-list"></div>
+      </section>
+      <section class="review-section" aria-labelledby="itemReviewTitle">
+        <div class="review-section-head"><div><h3 id="itemReviewTitle">Items to check</h3><p>Confirm the item and its current place, or correct it in Inventory.</p></div><span id="itemReviewLabel" class="review-count"></span></div>
+        <div id="itemReviewList" class="review-list"></div>
+      </section>
+      <section class="review-section" aria-labelledby="learningReviewTitle">
+        <div class="review-section-head"><div><h3 id="learningReviewTitle">Learning decisions</h3><p>Approve good examples, teach durable rules, or reject bad evidence.</p></div><span id="learningReviewLabel" class="review-count"></span></div>
+        <div id="learningReviewList" class="review-list"></div>
+      </section>
+      <section class="review-section" aria-labelledby="ruleReviewTitle">
+        <div class="review-section-head"><div><h3 id="ruleReviewTitle">Rule issues</h3><p>Repair rules with unavailable destinations and rules that disagree.</p></div><span id="ruleReviewLabel" class="review-count"></span></div>
+        <div id="ruleReviewList" class="review-list"></div>
+      </section>
+    </div>
+  </main>
+  <nav class="product-bottom-nav" data-product-nav aria-label="Mobile product views"></nav>
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {cache:"no-store", ...options});
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = body.detail;
+        throw new Error(typeof detail === "string" ? detail : detail?.message || `Request failed (${response.status})`);
+      }
+      return body;
+    }
+
+    function countLabel(count) { return `${count} open`; }
+    function showReceipt(title, message, {interactionId = 0, rulesLink = false, error = false} = {}) {
+      const receipt = byId("reviewReceipt");
+      receipt.classList.toggle("error", error);
+      byId("reviewReceiptTitle").textContent = title;
+      byId("reviewReceiptMessage").textContent = message;
+      byId("reviewReceiptActions").innerHTML = `${interactionId ? `<button class="secondary" type="button" data-undo-interaction="${escapeHtml(interactionId)}">Undo</button>` : ""}${rulesLink ? '<a class="button secondary" href="/storage?view=rules">Open rules</a>' : ""}<button class="secondary" type="button" data-dismiss-receipt>Dismiss</button>`;
+      const undo = byId("reviewReceiptActions").querySelector("[data-undo-interaction]");
+      if (undo) undo.onclick = () => undoReceipt(undo);
+      byId("reviewReceiptActions").querySelector("[data-dismiss-receipt]").onclick = () => { receipt.hidden = true; };
+      receipt.hidden = false;
+    }
+    function itemFixUrl(item, action) {
+      const params = new URLSearchParams({view:"inventory", from:item.bin_id});
+      params.set(action === "move" ? "review_item" : "edit_item", item.item_id);
+      return `/storage?${params}`;
+    }
+    function placeCheckUrl(place) {
+      const params = new URLSearchParams({view:"places", location:place.location_id, check:"1"});
+      return `/storage?${params}`;
+    }
+    function summarizeAction(example) {
+      const action = example.parsed_action;
+      if (Array.isArray(action)) {
+        return action.map((step) => {
+          const args = step?.arguments || {};
+          return [step?.tool, args.item || args.name || args.query, args.location_id || args.bin_id || args.destination].filter(Boolean).join(" ");
+        }).filter(Boolean).join("; ");
+      }
+      if (action && typeof action === "object") {
+        if (action.approved_review) return `Accepted ${action.approved_review.name || "item"} in ${action.approved_review.bin_id || "its place"}`;
+        return action.action || action.tool || "Recorded storage decision";
+      }
+      return "Recorded storage decision";
+    }
+    function renderItems(items) {
+      byId("itemReviewCount").textContent = items.length;
+      byId("itemReviewLabel").textContent = countLabel(items.length);
+      byId("itemReviewList").innerHTML = items.length ? items.map((item) => `<article class="review-row">
+        <div class="review-copy"><span class="review-tag">Needs a check</span><strong>${escapeHtml(item.name || "Unnamed item")}</strong><p>${escapeHtml(item.review_reason || "Confirm this item and place.")}</p><div class="review-detail"><span>${escapeHtml(item.location_path_label || item.bin_id)}</span><span>${escapeHtml(item.quantity || 1)} ${escapeHtml(item.unit || "each")}</span></div></div>
+        <div class="review-actions"><button type="button" data-approve-item="${escapeHtml(item.item_id)}" data-location="${escapeHtml(item.bin_id)}">Looks right</button><a class="button secondary" href="${escapeHtml(itemFixUrl(item, "edit"))}">Edit</a><a class="button secondary" href="${escapeHtml(itemFixUrl(item, "move"))}">Move</a></div>
+      </article>`).join("") : '<div class="review-empty">No uncertain items. New low-confidence put-aways will appear here.</div>';
+      byId("itemReviewList").querySelectorAll("[data-approve-item]").forEach((button) => button.onclick = () => approveItem(button));
+    }
+    function renderPlaceChecks(places) {
+      byId("placeReviewCount").textContent = places.length;
+      byId("placeReviewLabel").textContent = countLabel(places.length);
+      byId("placeReviewList").innerHTML = places.length ? places.map((place) => {
+        const confidence = place.confidence || {};
+        const itemCount = Number(place.item_count || 0);
+        const reviewCount = Number(place.review_count || 0);
+        return `<article class="review-row"><div class="review-copy"><span class="review-tag">Physical check</span><strong>${escapeHtml(place.path_label || place.label || place.location_id)}</strong><p>${escapeHtml(confidence.label || "Check this occupied storage place.")}</p><div class="review-detail"><span>${itemCount} item record${itemCount === 1 ? "" : "s"}</span>${reviewCount ? `<span>${reviewCount} uncertain</span>` : ""}<span>${escapeHtml(place.type || "place")}</span></div></div><div class="review-actions"><a class="button" href="${escapeHtml(placeCheckUrl(place))}">${escapeHtml(place.action_label || "Check contents")}</a><a class="button secondary" href="/storage?view=places&amp;location=${encodeURIComponent(place.location_id)}">Open place</a></div></article>`;
+      }).join("") : '<div class="review-empty">No storage checks are due.</div>';
+    }
+    function renderLearning(examples) {
+      byId("learningReviewCount").textContent = examples.length;
+      byId("learningReviewLabel").textContent = countLabel(examples.length);
+      byId("learningReviewList").innerHTML = examples.length ? examples.map((example) => `<article class="review-row">
+        <div class="review-copy"><span class="review-tag">Learning evidence</span><strong>${escapeHtml(example.command || "Recorded storage decision")}</strong><p>${escapeHtml(summarizeAction(example))}</p><div class="review-detail"><span>${escapeHtml(example.kind || "example")}</span>${(example.scenarios || []).map((scenario) => `<span>${escapeHtml(scenario)}</span>`).join("")}</div></div>
+        <div class="review-actions">${example.promotable ? `<button type="button" data-learning-action="promote" data-example="${escapeHtml(example.id)}">Learn this</button>` : ""}<button class="secondary" type="button" data-learning-action="approve" data-example="${escapeHtml(example.id)}">Approve</button><button class="danger" type="button" data-learning-action="reject" data-example="${escapeHtml(example.id)}">Reject</button></div>
+      </article>`).join("") : '<div class="review-empty">No pending learning decisions.</div>';
+      byId("learningReviewList").querySelectorAll("[data-learning-action]").forEach((button) => button.onclick = () => updateLearning(button));
+    }
+    function renderRules(issues) {
+      byId("ruleReviewCount").textContent = issues.length;
+      byId("ruleReviewLabel").textContent = countLabel(issues.length);
+      byId("ruleReviewList").innerHTML = issues.length ? issues.map((issue) => `<article class="review-row"><div class="review-copy"><span class="review-tag">Rule issue</span><strong>${escapeHtml(issue.title)}</strong><p>${escapeHtml(issue.detail)}</p></div><div class="review-actions"><a class="button secondary" href="/storage?view=rules&amp;scope=issues">Manage rules</a></div></article>`).join("") : '<div class="review-empty">No broken or conflicting rules.</div>';
+    }
+
+    async function approveItem(button) {
+      button.disabled = true;
+      byId("status").textContent = "Approving item";
+      try {
+        const result = await api("/inventory/reviewed", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({item_id:Number(button.dataset.approveItem), bin_id:button.dataset.location})});
+        await loadReview();
+        const item = result.approved || {};
+        showReceipt(
+          "Item approved",
+          `${item.name || "Item"} is confirmed in ${item.location_path_label || item.bin_id || button.dataset.location}.`,
+          {interactionId:Number(result.interaction_id || 0)},
+        );
+      } catch (error) {
+        byId("status").textContent = error.message;
+        button.disabled = false;
+      }
+    }
+    async function updateLearning(button) {
+      const action = button.dataset.learningAction;
+      button.disabled = true;
+      byId("status").textContent = action === "promote" ? "Teaching Magpie" : action === "approve" ? "Approving example" : "Rejecting example";
+      try {
+        const path = action === "reject" ? `/assistant/learning/examples/${encodeURIComponent(button.dataset.example)}` : `/assistant/learning/examples/${encodeURIComponent(button.dataset.example)}/${action}`;
+        const result = await api(path, {method:action === "reject" ? "DELETE" : "POST"});
+        await loadReview();
+        if (action === "promote") {
+          showReceipt("Rule learned", "Magpie will use this rule for future storage decisions.", {rulesLink:true});
+        } else if (action === "approve") {
+          showReceipt("Learning evidence approved", "This example is now trusted evidence for Magpie quality checks.");
+        } else {
+          const rolledBack = (result.rolled_back || []).length;
+          showReceipt(
+            "Learning evidence rejected",
+            rolledBack ? `${rolledBack} provisional rule${rolledBack === 1 ? " was" : "s were"} disabled.` : "Magpie will not use this example as trusted evidence.",
+            {rulesLink:rolledBack > 0},
+          );
+        }
+      } catch (error) {
+        byId("status").textContent = error.message;
+        button.disabled = false;
+      }
+    }
+    async function undoReceipt(button) {
+      const interactionId = Number(button.dataset.undoInteraction || 0);
+      if (!interactionId) return;
+      button.disabled = true;
+      button.textContent = "Undoing";
+      byId("status").textContent = "Undoing review approval";
+      try {
+        const result = await api("/assistant/undo", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({expected_interaction_id:interactionId})});
+        await loadReview();
+        showReceipt("Approval undone", result.message || "The item is back in the review queue.");
+      } catch (error) {
+        showReceipt("Could not undo", error.message, {error:true});
+        byId("status").textContent = "Undo unavailable";
+      }
+    }
+    function showLoadError(error) {
+      byId("reviewLoading").innerHTML = `<strong>Review unavailable</strong><span>${escapeHtml(error.message || "Check the connection and try again.")}</span><button id="retryReview" type="button">Try again</button>`;
+      byId("retryReview").onclick = loadReview;
+      byId("status").textContent = "Review unavailable";
+    }
+    async function loadReview() {
+      const refresh = byId("refreshReview");
+      refresh.disabled = true;
+      byId("reviewQueues").hidden = true;
+      byId("reviewLoading").hidden = false;
+      byId("reviewLoading").innerHTML = "<strong>Loading review</strong><span>Checking storage confidence, uncertain items, learning decisions, and rule health.</span>";
+      byId("status").textContent = "Loading review";
+      try {
+        const queue = await api("/review/queue?limit=50");
+        renderPlaceChecks(queue.place_checks || []);
+        renderItems(queue.items || []);
+        renderLearning(queue.learning_examples || []);
+        renderRules(queue.rule_issues || []);
+        const total = (queue.place_checks || []).length + (queue.items || []).length + (queue.learning_examples || []).length + (queue.rule_issues || []).length;
+        byId("reviewLoading").hidden = true;
+        byId("reviewQueues").hidden = false;
+        byId("status").textContent = total ? `${total} decision${total === 1 ? "" : "s"} to review` : "Nothing needs review";
+      } catch (error) {
+        showLoadError(error);
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+    byId("refreshReview").onclick = loadReview;
+    (window.magpieAuthReady || Promise.resolve()).then(loadReview);
+  </script>
+</body>
+</html>

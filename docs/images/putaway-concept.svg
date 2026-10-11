@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="840" viewBox="0 0 1060 840" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+    <marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#868e96"/>
+    </marker>
+  </defs>
+
+  <rect width="1060" height="840" fill="#f4f5f7"/>
+
+  <!-- ============ PHONE A — CAPTURE ============ -->
+  <rect x="40" y="40" width="400" height="760" rx="30" fill="#ffffff" stroke="#343a40" stroke-width="2" filter="url(#shadow)"/>
+  <circle cx="408" cy="74" r="16" fill="#1971c2"/>
+  <text x="408" y="80" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+
+  <text x="68" y="96" font-size="26" font-weight="700" fill="#212529">Put away</text>
+  <text x="68" y="120" font-size="13" fill="#868e96">snap it or say it — that's the whole job</text>
+
+  <!-- photo capture -->
+  <rect x="68" y="142" width="344" height="170" rx="14" fill="#343a40"/>
+  <text x="240" y="218" font-size="46" text-anchor="middle">📸</text>
+  <text x="240" y="252" font-size="14" fill="#ced4da" text-anchor="middle">photo captured · tap to retake</text>
+
+  <!-- voice transcript -->
+  <rect x="68" y="330" width="344" height="54" rx="14" fill="#f1f3f5" stroke="#ced4da"/>
+  <text x="88" y="364" font-size="16" fill="#343a40">🎤  &#8220;put these away&#8221;</text>
+
+  <!-- recognized -->
+  <rect x="68" y="404" width="344" height="150" rx="16" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+  <text x="90" y="432" font-size="12" font-weight="700" letter-spacing="1.5" fill="#1971c2">RECOGNIZED</text>
+  <text x="90" y="462" font-size="18" font-weight="700" fill="#1864ab">iFixit Mini Precision Set</text>
+  <text x="90" y="488" font-size="13" fill="#495057">Tools · matches an item you already have ✓</text>
+  <line x1="90" y1="508" x2="390" y2="508" stroke="#b8d8f0"/>
+  <text x="90" y="534" font-size="13" fill="#868e96">Wrong item? Tap to fix</text>
+
+  <!-- primary action -->
+  <rect x="68" y="590" width="344" height="56" rx="28" fill="#1971c2"/>
+  <text x="240" y="625" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">Find its home  →</text>
+
+  <!-- ============ ARROW ============ -->
+  <path d="M 446 360 L 588 360" fill="none" stroke="#868e96" stroke-width="3" marker-end="url(#ah)"/>
+  <text x="517" y="346" font-size="13" font-weight="700" fill="#868e96" text-anchor="middle">1 tap</text>
+
+  <!-- ============ PHONE B — CONFIRM ============ -->
+  <rect x="600" y="40" width="400" height="760" rx="30" fill="#ffffff" stroke="#343a40" stroke-width="2" filter="url(#shadow)"/>
+  <circle cx="968" cy="74" r="16" fill="#1971c2"/>
+  <text x="968" y="80" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+
+  <text x="628" y="96" font-size="26" font-weight="700" fill="#212529">Confirm</text>
+  <text x="628" y="120" font-size="13" fill="#868e96">we already suggest where it lives</text>
+
+  <!-- destination hero -->
+  <rect x="628" y="142" width="344" height="150" rx="18" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+  <text x="650" y="170" font-size="12" font-weight="700" letter-spacing="1.5" fill="#1971c2">GOES TO</text>
+  <text x="648" y="232" font-size="44" font-weight="800" fill="#1864ab">Drawer 2</text>
+  <text x="650" y="266" font-size="15" fill="#495057">its usual home · top-left bin</text>
+
+  <!-- change option (secondary) -->
+  <rect x="628" y="312" width="186" height="42" rx="21" fill="#f8f9fa" stroke="#ced4da"/>
+  <text x="650" y="338" font-size="14" fill="#495057">Change location</text>
+  <text x="628" y="378" font-size="13" fill="#868e96">Putting it somewhere new? Just say so.</text>
+
+  <!-- confirm -->
+  <rect x="628" y="404" width="344" height="58" rx="29" fill="#2f9e44"/>
+  <text x="800" y="441" font-size="19" font-weight="700" fill="#fff" text-anchor="middle">✓  Put it away</text>
+
+  <!-- after state + where to put it -->
+  <text x="628" y="500" font-size="12" font-weight="700" letter-spacing="1" fill="#adb5bd">AFTER YOU TAP — WHERE TO PUT IT</text>
+
+  <rect x="680" y="516" width="240" height="40" rx="8" fill="#f1f3f5" stroke="#ced4da"/>
+  <text x="800" y="541" font-size="14" fill="#adb5bd" text-anchor="middle">Drawer 1</text>
+
+  <rect x="676" y="566" width="248" height="46" rx="9" fill="#4dabf7" opacity="0.45" filter="url(#glow)"/>
+  <rect x="680" y="568" width="240" height="42" rx="8" fill="#d0ebff" stroke="#1971c2" stroke-width="3"/>
+  <text x="800" y="595" font-size="15" font-weight="700" fill="#1864ab" text-anchor="middle">🔦 Drawer 2 — drop it in</text>
+
+  <rect x="680" y="622" width="240" height="40" rx="8" fill="#f1f3f5" stroke="#ced4da"/>
+  <text x="800" y="647" font-size="14" fill="#adb5bd" text-anchor="middle">Drawer 3</text>
+
+  <text x="628" y="704" font-size="13" fill="#868e96">The drawer lights so you place it right —</text>
+  <text x="628" y="724" font-size="13" fill="#868e96">no hunting, no second-guessing.</text>
+</svg>

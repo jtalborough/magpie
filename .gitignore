@@ -1,0 +1,13 @@
+/.pytest_cache/
+/.venv-ci/
+/.venv/
+/build/
+/carcass/build/
+/src/*.egg-info/
+/state/
+.DS_Store
+*.env
+secrets.env
+__pycache__/
+*.py[cod]
+present.html

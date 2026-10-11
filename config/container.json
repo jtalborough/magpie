@@ -1,0 +1,25 @@
+{
+  "pixel_count": 0,
+  "gpio_pin": 13,
+  "backend": "none",
+  "color_order": "RGB",
+  "default_brightness": 0.4,
+  "bind_host": "0.0.0.0",
+  "bind_port": 8765,
+  "layout_path": "/app/config/storage-empty.json",
+  "database_path": "/data/inventory.db",
+  "assistant_backend": "auto",
+  "agent_max_steps": 4,
+  "openai_model": "gpt-5.6-luna",
+  "storage": {
+    "backend": "sqlite"
+  },
+  "edge": {
+    "mode": "local",
+    "target_device_id": "",
+    "tokens_env": "MAGPIE_EDGE_TOKENS_JSON",
+    "command_ttl_seconds": 300,
+    "claim_timeout_seconds": 30,
+    "max_attempts": 5
+  }
+}

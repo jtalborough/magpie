@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <title>Check Station - Magpie</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/product-shell.js" defer></script>
+  <script src="/auth.js"></script>
+  <script src="/photo-utils.js"></script>
+  <style>
+    * { box-sizing:border-box; }
+    html { background:var(--bg); }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.5; }
+    [hidden] { display:none !important; }
+    .station-exit { white-space:nowrap; }
+    header .magpie-workspace-control { margin-left:0; }
+    main { width:min(1120px,100%); margin:0 auto; padding:22px 18px 40px; }
+    .status-line { min-height:42px; display:flex; align-items:center; gap:10px; margin-bottom:18px; padding:9px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--muted); font-size:13px; }
+    .status-action { min-height:34px; display:inline-flex; align-items:center; justify-content:center; margin-left:auto; padding:6px 10px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface); color:var(--accent); font-size:12px; font-weight:750; text-decoration:none; white-space:nowrap; }
+    .status-dot { width:9px; aspect-ratio:1; border-radius:50%; background:#9aa5a1; }
+    .status-line.busy .status-dot { background:#ca8a04; }
+    .status-line.setup .status-dot { background:var(--warning); }
+    .status-line.ready .status-dot { background:var(--positive); }
+    .status-line.error { color:var(--danger); border-color:#e8b4af; }
+    .status-line.error .status-dot { background:var(--danger); }
+    .workspace { display:grid; grid-template-columns:minmax(300px,420px) minmax(0,1fr); gap:22px; align-items:start; }
+    .capture { display:grid; gap:16px; }
+    .section { border-top:1px solid var(--line); padding-top:16px; }
+    .section:first-child { border-top:0; padding-top:0; }
+    .section-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .section-head strong { font-size:14px; }
+    .section-head span { color:var(--muted); font-size:11px; }
+    label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:700; }
+    input,select { width:100%; min-height:44px; border:1px solid var(--line-strong); border-radius:6px; padding:9px 10px; background:var(--surface); color:var(--text); }
+    input:focus,select:focus { outline:2px solid var(--focus-ring); outline-offset:1px; border-color:var(--accent); }
+    .quantity-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .photo-stage { min-height:220px; display:grid; place-items:center; border:1px dashed var(--line-strong); border-radius:8px; background:var(--surface-inset); overflow:hidden; }
+    .photo-empty { color:var(--muted); font-size:13px; font-weight:700; }
+    .photo-list { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px; }
+    .photo { position:relative; min-height:218px; background:#dfe5e2; }
+    .photo img { width:100%; height:100%; min-height:218px; display:block; object-fit:contain; }
+    .photo button { position:absolute; top:8px; right:8px; width:44px; height:44px; border:1px solid rgba(255,255,255,.7); border-radius:50%; background:rgba(23,32,30,.78); color:#fff; font-size:20px; line-height:1; }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .button { min-height:46px; display:grid; place-items:center; border:1px solid var(--accent); border-radius:6px; padding:9px 12px; background:var(--accent); color:#fff; text-align:center; text-decoration:none; font-weight:750; }
+    .button.secondary { background:var(--surface); color:var(--accent); }
+    .button.quiet { border-color:var(--line); background:var(--surface); color:var(--text); }
+    .measurement { display:grid; gap:12px; }
+    .dimension-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .confidence { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; color:var(--muted); font-size:12px; }
+    .confidence strong { color:var(--text); }
+    .destinations { min-width:0; border-left:1px solid var(--line); padding-left:22px; }
+    .destination-list { display:grid; gap:8px; margin-bottom:14px; }
+    .destination { width:100%; min-height:62px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--text); text-align:left; }
+    .destination:hover { border-color:#83b8af; }
+    .destination.selected { border:2px solid var(--accent); padding:9px 11px; background:var(--soft); }
+    .destination strong { display:block; font-size:14px; overflow-wrap:anywhere; }
+    .destination span { display:block; margin-top:3px; color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+    .capacity { min-width:56px; color:var(--accent-strong) !important; text-align:right; font-weight:750; text-transform:capitalize; }
+    .empty-destinations { min-height:170px; display:grid; place-items:center; padding:24px; border:1px dashed var(--line); border-radius:6px; color:var(--muted); font-size:13px; text-align:center; }
+    .empty-destination-action { display:grid; justify-items:center; gap:7px; max-width:420px; }
+    .empty-destination-action strong { color:var(--text); font-size:15px; }
+    .empty-destination-action span { line-height:1.45; }
+    .empty-destination-action .button { min-width:160px; margin-top:5px; }
+    .save-bar { position:sticky; bottom:0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; margin-top:18px; padding:14px 0 calc(14px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--bg); }
+    .save-bar label { background:var(--bg); }
+    .save-bar .button { min-width:170px; }
+    .receipt { padding:18px; border:1px solid color-mix(in srgb,var(--positive) 48%,var(--line)); border-radius:8px; background:var(--positive-soft); }
+    .receipt strong { display:block; font-size:17px; }
+    .receipt p { margin:6px 0 14px; color:var(--muted); font-size:13px; }
+    .receipt-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    @media (max-width:780px) {
+      .workspace { grid-template-columns:1fr; }
+      .destinations { border-left:0; border-top:1px solid var(--line); padding:18px 0 0; }
+      .save-bar { position:static; grid-template-columns:1fr; }
+      .save-bar .button { width:100%; }
+    }
+    @media (max-width:460px) {
+      main { padding:16px 12px 30px; }
+      .station-exit { padding-inline:9px; }
+      .dimension-grid { grid-template-columns:1fr 1fr; }
+      .dimension-grid label:last-child { grid-column:1/-1; }
+      .actions { grid-template-columns:1fr; }
+      .photo { min-height:180px; }
+      .photo img { min-height:180px; }
+    }
+  </style>
+</head>
+<body class="product-app">
+  <header class="product-header">
+    <div class="product-brand"><span class="product-mark" aria-hidden="true">M</span><div class="product-title"><h1>Magpie</h1><span class="product-context">Check station</span></div><nav class="product-nav" data-product-nav aria-label="Product views"></nav></div>
+    <div class="product-header-actions"><a class="button secondary station-exit" href="/">Exit station</a></div>
+  </header>
+  <main>
+    <div class="status-line busy" id="statusLine" role="status"><span class="status-dot"></span><span id="statusText">Loading storage locations</span><a id="statusAction" class="status-action" href="/storage?view=places" hidden>Open Storage</a></div>
+    <div class="workspace" id="workspace">
+      <div class="capture">
+        <section class="section">
+          <div class="section-head"><strong>Item</strong><span>1 of 3</span></div>
+          <label>Name<input id="itemName" autocomplete="off" placeholder="M4 socket cap screws"></label>
+          <div class="quantity-grid">
+            <label>Quantity<input id="quantity" type="number" min="0.01" step="any" value="1"></label>
+            <label>Unit<select id="unit"><option>each</option><option>pieces</option><option>set</option><option>bag</option><option>box</option></select></label>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-head"><strong>Photos</strong><span>2 of 3</span></div>
+          <div class="photo-stage" id="photoStage"><div class="photo-empty">No photos</div></div>
+          <input id="photoInput" type="file" accept="image/*,.heic,.heif" capture="environment" multiple hidden>
+          <div class="actions">
+            <button class="button" id="captureButton" type="button">Take photo</button>
+            <a class="button secondary" href="/measurement/calibration-grid.pdf" target="_blank" rel="noreferrer">Open grid</a>
+          </div>
+        </section>
+        <section class="section measurement">
+          <div class="section-head"><strong>Size</strong><span>3 of 3</span></div>
+          <div class="dimension-grid">
+            <label>Length mm<input id="lengthMm" type="number" min="0" step="0.1" inputmode="decimal"></label>
+            <label>Width mm<input id="widthMm" type="number" min="0" step="0.1" inputmode="decimal"></label>
+            <label>Height mm<input id="heightMm" type="number" min="0" step="0.1" inputmode="decimal"></label>
+          </div>
+          <label>Storage size<select id="sizeClass"><option value="tiny">Tiny</option><option value="small" selected>Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="oversize">Oversize</option></select></label>
+          <div class="confidence"><span id="measurementState">Enter dimensions or measure from the grid</span><strong id="confidenceValue"></strong></div>
+          <div class="actions">
+            <button class="button" id="measureButton" type="button">Measure photo</button>
+            <button class="button secondary" id="suggestButton" type="button" disabled>Find locations</button>
+          </div>
+        </section>
+      </div>
+      <section class="destinations">
+        <div class="section-head"><strong>Destination</strong><span id="destinationCount">0 suggestions</span></div>
+        <div class="destination-list" id="destinationList" aria-busy="true"><div class="product-load-state"><strong>Loading destinations</strong><span>Gathering available storage locations.</span></div></div>
+        <label>All locations<select id="locationSelect" disabled><option value="">Choose a location</option></select></label>
+        <div class="save-bar">
+          <label>Selected destination<input id="selectedDestination" readonly placeholder="None selected"></label>
+          <button class="button" id="saveButton" type="button" disabled>Save item</button>
+        </div>
+      </section>
+    </div>
+    <section class="receipt" id="receipt" hidden>
+      <strong id="receiptTitle">Saved</strong>
+      <p id="receiptCopy"></p>
+      <div class="receipt-actions"><button class="button" id="nextButton" type="button">Next item</button><a class="button secondary" id="openLocation" href="/storage">Open location</a></div>
+    </section>
+  </main>
+  <script>
+    "use strict";
+    const byId = (id) => document.getElementById(id);
+    let photos = [];
+    let locations = [];
+    let selectedLocationId = "";
+    let measurementConfidence = 0;
+    let measurementSource = "manual";
+    let saved = false;
+    let locationsReady = false;
+    let lightRequestId = 0;
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {cache:"no-store", ...options});
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || `Request failed (${response.status})`);
+      return body;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[character]));
+    }
+
+    function setStatus(message, state = "") {
+      byId("statusText").textContent = message;
+      byId("statusLine").className = `status-line${state ? ` ${state}` : ""}`;
+    }
+
+    function setLocationControlsReady(ready) {
+      locationsReady = ready;
+      byId("locationSelect").disabled = !ready;
+      byId("suggestButton").disabled = !ready;
+      if (!ready) byId("saveButton").disabled = true;
+    }
+
+    async function loadLocations() {
+      setLocationControlsReady(false);
+      byId("statusAction").hidden = true;
+      byId("locationSelect").setAttribute("aria-busy", "true");
+      byId("destinationList").setAttribute("aria-busy", "true");
+      byId("destinationList").innerHTML = '<div class="product-load-state"><strong>Loading destinations</strong><span>Gathering available storage locations.</span></div>';
+      setStatus("Loading storage locations", "busy");
+      try {
+        const result = await api("/locations");
+        locations = (result.locations || []).filter((location) => location.active !== false);
+        const choices = locations.filter((location) => location.accepts_items === true);
+        choices.sort((a,b) => locationPath(a.id).localeCompare(locationPath(b.id)));
+        byId("locationSelect").innerHTML = '<option value="">Choose a location</option>' + choices.map((location) => `<option value="${escapeHtml(location.id)}">${escapeHtml(locationPath(location.id))}</option>`).join("");
+        if (!choices.length) {
+          byId("destinationList").innerHTML = '<div class="empty-destinations"><div class="empty-destination-action"><strong>No storage destination yet</strong><span>Create a bin, drawer, shelf, box, or pouch that stores items before checking anything in.</span><a class="button secondary" href="/storage?view=places">Open Storage</a></div></div>';
+          byId("destinationList").removeAttribute("aria-busy");
+          byId("locationSelect").removeAttribute("aria-busy");
+          setLocationControlsReady(false);
+          setStatus("Add a storage destination", "setup");
+          byId("statusAction").hidden = false;
+          return;
+        }
+        byId("destinationList").innerHTML = '<div class="empty-destinations">Measure the item or find locations</div>';
+        byId("destinationList").removeAttribute("aria-busy");
+        byId("locationSelect").removeAttribute("aria-busy");
+        setLocationControlsReady(true);
+        setStatus("Ready for an item", "ready");
+      } catch (error) {
+        const message = error.message || "Check the connection and try again.";
+        byId("destinationList").removeAttribute("aria-busy");
+        byId("locationSelect").removeAttribute("aria-busy");
+        byId("destinationList").innerHTML = `<div class="product-load-state" role="alert"><strong>Destinations did not load</strong><span>${escapeHtml(message)}</span><button id="retryLocations" type="button">Try again</button></div>`;
+        byId("retryLocations").onclick = () => loadLocations();
+        setStatus("Storage locations unavailable", "error");
+      }
+    }
+
+    function dimensions() {
+      const output = {};
+      [["length_mm","lengthMm"],["width_mm","widthMm"],["height_mm","heightMm"]].forEach(([key,id]) => {
+        const value = Number(byId(id).value);
+        if (Number.isFinite(value) && value > 0) output[key] = value;
+      });
+      return output;
+    }
+
+    function locationPath(locationId) {
+      const index = new Map(locations.map((location) => [location.id, location]));
+      const labels = [];
+      let current = index.get(locationId);
+      const seen = new Set();
+      while (current && !seen.has(current.id)) {
+        labels.unshift(current.label || current.id);
+        seen.add(current.id);
+        current = current.parent_id ? index.get(current.parent_id) : null;
+      }
+      return labels.join(" › ");
+    }
+
+    function renderPhotos() {
+      if (!photos.length) {
+        byId("photoStage").innerHTML = '<div class="photo-empty">No photos</div>';
+        return;
+      }
+      byId("photoStage").innerHTML = `<div class="photo-list">${photos.map((photo,index) => `<div class="photo"><img src="/photos/${encodeURIComponent(photo.id)}" alt="Captured item"><button type="button" data-remove-photo="${index}" aria-label="Remove photo">×</button></div>`).join("")}</div>`;
+      byId("photoStage").querySelectorAll("[data-remove-photo]").forEach((button) => {
+        button.onclick = async () => {
+          const [photo] = photos.splice(Number(button.dataset.removePhoto),1);
+          renderPhotos();
+          if (photo?.id) await api(`/photos/${encodeURIComponent(photo.id)}`, {method:"DELETE"}).catch(() => {});
+        };
+      });
+    }
+
+    async function uploadPhotos(files) {
+      const selected = Array.from(files).slice(0, Math.max(0, 2 - photos.length));
+      if (!selected.length) return;
+      setStatus(`Uploading ${selected.length} photo${selected.length === 1 ? "" : "s"}`, "busy");
+      byId("captureButton").disabled = true;
+      try {
+        for (const file of selected) {
+          const prepared = await window.magpiePhotos.prepare(file);
+          const result = await api("/photos", {
+            method:"POST",
+            headers:{"content-type":"application/json"},
+            body:JSON.stringify({filename:prepared.filename, content_type:prepared.contentType, data_base64:prepared.dataUrl})
+          });
+          photos.push(result.photo);
+        }
+        renderPhotos();
+        setStatus("Photo ready", "ready");
+      } catch (error) {
+        setStatus(error.message || "Photo upload failed", "error");
+      } finally {
+        byId("captureButton").disabled = photos.length >= 2;
+        byId("photoInput").value = "";
+      }
+    }
+
+    async function lightSelectedLocation(locationId) {
+      const requestId = ++lightRequestId;
+      try {
+        const result = await api(`/locations/${encodeURIComponent(locationId)}/light`, {method:"POST"});
+        if (requestId !== lightRequestId || selectedLocationId !== locationId) return;
+        setStatus(result.lit ? "Destination selected and lit" : "Destination selected", "ready");
+      } catch {
+        if (requestId === lightRequestId && selectedLocationId === locationId) {
+          setStatus("Destination selected; light unavailable", "ready");
+        }
+      }
+    }
+
+    function selectLocation(locationId) {
+      selectedLocationId = locationId || "";
+      byId("locationSelect").value = selectedLocationId;
+      byId("selectedDestination").value = selectedLocationId ? locationPath(selectedLocationId) : "";
+      byId("saveButton").disabled = !selectedLocationId || !byId("itemName").value.trim();
+      byId("destinationList").querySelectorAll(".destination").forEach((button) => button.classList.toggle("selected", button.dataset.locationId === selectedLocationId));
+      if (selectedLocationId) lightSelectedLocation(selectedLocationId);
+    }
+
+    function renderSuggestions(suggestions) {
+      byId("destinationCount").textContent = `${suggestions.length} suggestion${suggestions.length === 1 ? "" : "s"}`;
+      if (!suggestions.length) {
+        byId("destinationList").innerHTML = '<div class="empty-destinations">No ranked destination found. Choose from all locations.</div>';
+        return;
+      }
+      byId("destinationList").innerHTML = suggestions.map((suggestion) => {
+        const path = locationPath(suggestion.location_id) || suggestion.label || suggestion.location_id;
+        const contents = (suggestion.contents || []).slice(0,3).join(", ");
+        return `<button class="destination${suggestion.location_id === selectedLocationId ? " selected" : ""}" type="button" data-location-id="${escapeHtml(suggestion.location_id)}"><span><strong>${escapeHtml(path)}</strong><span>${contents ? `Contains ${escapeHtml(contents)}` : "Available storage"}</span></span><span class="capacity">${escapeHtml(suggestion.capacity_class || "")}</span></button>`;
+      }).join("");
+      byId("destinationList").querySelectorAll(".destination").forEach((button) => button.onclick = () => selectLocation(button.dataset.locationId));
+      if (!selectedLocationId && suggestions[0]?.location_id) selectLocation(suggestions[0].location_id);
+    }
+
+    async function refreshPlacement() {
+      const item = byId("itemName").value.trim();
+      if (!item) { setStatus("Enter the item name", "error"); byId("itemName").focus(); return; }
+      if (!locationsReady) { setStatus("Load storage locations before finding a destination", "error"); return; }
+      setStatus("Ranking storage locations", "busy");
+      byId("suggestButton").disabled = true;
+      try {
+        const payload = {item, dimensions:dimensions(), limit:8};
+        const [size, placement] = await Promise.all([
+          api("/placement/size", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(payload)}),
+          api("/placement/suggest", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(payload)})
+        ]);
+        if (size.size_class) byId("sizeClass").value = size.size_class;
+        renderSuggestions(placement.suggestions || []);
+        setStatus("Choose a destination", "ready");
+      } catch (error) {
+        setStatus(error.message || "Could not rank locations", "error");
+      } finally {
+        byId("suggestButton").disabled = false;
+      }
+    }
+
+    async function measurePhoto() {
+      const item = byId("itemName").value.trim();
+      if (!item) { setStatus("Enter the item name", "error"); byId("itemName").focus(); return; }
+      if (!photos.length) { setStatus("Take a photo on the measurement grid", "error"); return; }
+      setStatus("Measuring item", "busy");
+      byId("measureButton").disabled = true;
+      try {
+        const result = await api("/measurement/photo", {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({item, photo_ids:photos.map((photo) => Number(photo.id))})
+        });
+        if (!result.reference_detected) throw new Error(result.reason || "Measurement grid was not detected");
+        const measured = result.dimensions || {};
+        byId("lengthMm").value = measured.length_mm || "";
+        byId("widthMm").value = measured.width_mm || "";
+        byId("heightMm").value = measured.height_mm || "";
+        if (result.size_class) byId("sizeClass").value = result.size_class;
+        measurementConfidence = Number(result.confidence || 0);
+        measurementSource = "measurement";
+        byId("measurementState").textContent = "Measured from calibration grid";
+        byId("confidenceValue").textContent = `${Math.round(measurementConfidence * 100)}%`;
+        await refreshPlacement();
+      } catch (error) {
+        measurementSource = "manual";
+        measurementConfidence = 0;
+        byId("measurementState").textContent = "Enter dimensions manually";
+        byId("confidenceValue").textContent = "";
+        setStatus(error.message || "Measurement failed", "error");
+      } finally {
+        byId("measureButton").disabled = false;
+      }
+    }
+
+    async function saveItem() {
+      const name = byId("itemName").value.trim();
+      if (!name || !selectedLocationId) return;
+      setStatus("Saving item", "busy");
+      byId("saveButton").disabled = true;
+      try {
+        const result = await api("/inventory", {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({
+            name,
+            bin_id:selectedLocationId,
+            quantity:Number(byId("quantity").value) || 1,
+            unit:byId("unit").value,
+            photo_ids:photos.map((photo) => Number(photo.id)),
+            size_class:byId("sizeClass").value,
+            size_source:measurementSource,
+            size_confidence:measurementSource === "measurement" ? measurementConfidence : 1,
+            dimensions:dimensions()
+          })
+        });
+        saved = true;
+        byId("workspace").hidden = true;
+        byId("receipt").hidden = false;
+        byId("receiptTitle").textContent = `${name} saved`;
+        byId("receiptCopy").textContent = `${Number(byId("quantity").value) || 1} ${byId("unit").value} in ${locationPath(selectedLocationId)}.`;
+        byId("openLocation").href = `/storage?location=${encodeURIComponent(selectedLocationId)}`;
+        setStatus(result.lit ? "Inventory updated and destination lit" : "Inventory updated", "ready");
+        return result;
+      } catch (error) {
+        setStatus(error.message || "Could not save item", "error");
+        byId("saveButton").disabled = false;
+      }
+    }
+
+    function resetStation() {
+      photos = [];
+      selectedLocationId = "";
+      lightRequestId += 1;
+      measurementConfidence = 0;
+      measurementSource = "manual";
+      saved = false;
+      ["itemName","lengthMm","widthMm","heightMm","selectedDestination"].forEach((id) => { byId(id).value = ""; });
+      byId("quantity").value = "1";
+      byId("unit").value = "each";
+      byId("sizeClass").value = "small";
+      byId("measurementState").textContent = "Enter dimensions or measure from the grid";
+      byId("confidenceValue").textContent = "";
+      byId("destinationCount").textContent = "0 suggestions";
+      byId("destinationList").innerHTML = '<div class="empty-destinations">Measure the item or find locations</div>';
+      byId("locationSelect").value = "";
+      byId("workspace").hidden = false;
+      byId("receipt").hidden = true;
+      byId("saveButton").disabled = true;
+      renderPhotos();
+      setStatus("Ready for an item");
+      byId("itemName").focus();
+    }
+
+    async function start() {
+      byId("captureButton").onclick = () => byId("photoInput").click();
+      byId("photoInput").onchange = () => uploadPhotos(byId("photoInput").files || []);
+      byId("measureButton").onclick = measurePhoto;
+      byId("suggestButton").onclick = refreshPlacement;
+      byId("saveButton").onclick = saveItem;
+      byId("nextButton").onclick = resetStation;
+      byId("locationSelect").onchange = () => selectLocation(byId("locationSelect").value);
+      byId("itemName").oninput = () => { byId("saveButton").disabled = !selectedLocationId || !byId("itemName").value.trim(); };
+      ["lengthMm","widthMm","heightMm"].forEach((id) => byId(id).oninput = () => {
+        measurementSource = "manual";
+        measurementConfidence = 0;
+        byId("measurementState").textContent = "Dimensions edited manually";
+        byId("confidenceValue").textContent = "";
+      });
+      await loadLocations();
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+      byId("itemName").focus();
+    }
+
+    (window.magpieAuthReady || Promise.resolve()).then(start);
+  </script>
+</body>
+</html>

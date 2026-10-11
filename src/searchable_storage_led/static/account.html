@@ -1,0 +1,1461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Magpie">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/product-shell.js" defer></script>
+  <script src="/auth.js"></script>
+  <script src="/location-display.js"></script>
+  <title>Account - Magpie</title>
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--text); background:var(--bg); }
+    nav { display:flex; gap:4px; }
+    .status { color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .account-main { --page-content-max:1180px; }
+    .account-layout { display:grid; grid-template-columns:164px minmax(0,1fr); gap:36px; align-items:start; }
+    .account-nav { position:sticky; top:90px; display:grid; gap:3px; padding:4px 0; }
+    .account-nav a { min-height:40px; display:flex; align-items:center; padding:8px 10px; border-left:3px solid transparent; color:var(--muted); font-size:13px; font-weight:680; text-decoration:none; }
+    .account-nav a:hover, .account-nav a:focus-visible { border-left-color:var(--accent); background:var(--soft); color:var(--accent-strong); }
+    .account-sections { min-width:0; }
+    .copy { margin:0; color:var(--muted); font-size:13px; line-height:1.45; }
+    .workspace-name { margin:0; font-size:28px; line-height:1.2; }
+    .workspace-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; color:var(--muted); font-size:12px; }
+    form { display:grid; grid-template-columns:minmax(220px,1fr) 150px auto; align-items:end; gap:10px; padding:16px; background:var(--surface); border:1px solid var(--line); border-radius:6px; }
+    label { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:650; }
+    input, select { width:100%; min-height:44px; border:1px solid var(--line-strong); border-radius:6px; padding:8px 10px; background:var(--surface); color:var(--text); font:inherit; }
+    button, .button { min-height:44px; border:1px solid var(--accent); border-radius:6px; padding:8px 12px; background:var(--accent); color:var(--accent-ink); font:inherit; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-grid; place-items:center; }
+    button:disabled { opacity:.55; cursor:wait; }
+    button.icon { width:44px; min-height:44px; padding:0; color:var(--danger); background:var(--surface); border-color:var(--line); font-size:20px; }
+    button.secondary { color:var(--accent); background:var(--surface); }
+    button.danger { color:var(--danger); background:var(--surface); border-color:var(--danger); }
+    .message { min-height:20px; margin:10px 0 0; color:var(--muted); font-size:13px; }
+    .message.error { color:var(--danger); }
+    .member-list { background:var(--surface); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+    .member { display:grid; grid-template-columns:minmax(0,1fr) 150px 42px; align-items:center; gap:10px; min-height:64px; padding:10px 14px; border-bottom:1px solid var(--line); }
+    .member:last-child { border-bottom:0; }
+    .member-email { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:650; }
+    .member-id { margin-top:3px; color:var(--muted); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .role-label { color:var(--muted); font-size:12px; text-transform:capitalize; }
+    .empty { padding:28px 16px; color:var(--muted); text-align:center; }
+    .local-state { padding:26px; background:var(--surface); border:1px solid var(--line); border-radius:6px; }
+    .device-list { display:grid; gap:8px; margin-top:12px; }
+    .device { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:14px; background:var(--surface); border:1px solid var(--line); border-radius:6px; }
+    .device-name { font-size:14px; font-weight:700; }
+    .device-heading { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .device-id { color:var(--muted); font:10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .device-state { display:inline-flex; align-items:center; min-height:22px; padding:2px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:var(--bg); font-size:10px; font-weight:750; text-transform:capitalize; }
+    .device-state.connected { border-color:color-mix(in srgb,var(--positive) 48%,var(--line)); color:var(--positive); background:var(--positive-soft); }
+    .device-state.offline { border-color:color-mix(in srgb,var(--danger) 42%,var(--line)); color:var(--danger); background:var(--danger-soft); }
+    .device-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:5px; color:var(--muted); font-size:11px; }
+    .device-actions { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
+    .device-actions button { min-height:44px; }
+    .device-surfaces { display:flex; flex-wrap:wrap; gap:8px; }
+    .device-surfaces .button { min-height:44px; }
+    #deviceForm { grid-template-columns:180px minmax(220px,1fr) auto; }
+    .device-enrollment-note { grid-column:1/-1; display:grid; gap:3px; padding-top:2px; color:var(--muted); font-size:11px; }
+    .device-enrollment-note strong { color:var(--text); font-size:12px; }
+    .token-panel { margin-top:12px; padding:14px; border:1px solid var(--accent); border-radius:6px; background:var(--soft); }
+    .pairing-receipt-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .pairing-receipt-title { min-width:0; display:grid; gap:4px; }
+    .pairing-state { color:var(--muted); font-size:11px; font-weight:700; }
+    .pairing-state.connected { color:var(--positive); }
+    .pairing-state.waiting { color:var(--warning); }
+    .pairing-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .pairing-step { min-width:0; display:grid; grid-template-columns:24px minmax(0,1fr); gap:8px; align-items:center; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--muted); font-size:11px; line-height:1.35; }
+    .pairing-step-number { width:24px; aspect-ratio:1; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:50%; font-size:10px; font-weight:800; }
+    .pairing-step.active { border-color:var(--accent); color:var(--text); }
+    .pairing-step.active .pairing-step-number { border-color:var(--accent); color:var(--accent); }
+    .pairing-step.done { color:var(--positive); }
+    .pairing-step.done .pairing-step-number { border-color:var(--positive); background:var(--positive); color:#fff; }
+    .pairing-command { width:100%; min-height:180px; margin-top:8px; resize:vertical; border:1px solid var(--line-strong); border-radius:6px; padding:10px; background:var(--surface); color:var(--text); font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .pairing-actions { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .pairing-success { display:grid; grid-template-columns:38px minmax(0,1fr) auto; gap:10px; align-items:center; margin-top:12px; padding:12px; border:1px solid color-mix(in srgb,var(--positive) 42%,var(--line)); border-radius:6px; background:var(--positive-soft); }
+    .pairing-success .pairing-success-mark { width:38px; aspect-ratio:1; display:grid; place-items:center; margin-top:0; border-radius:50%; background:var(--positive); color:#fff; font-size:18px; font-weight:800; }
+    .pairing-success strong, .pairing-success span { display:block; }
+    .pairing-success span { margin-top:3px; color:var(--muted); font-size:11px; line-height:1.4; }
+    .data-actions { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
+    .data-actions label { min-width:min(320px,100%); }
+    .data-actions .button { color:var(--accent); background:var(--surface); }
+    .backup-preview { margin-top:12px; padding:12px 0; border-top:1px solid var(--line); }
+    .import-preview { margin-top:12px; padding:12px 0; border-top:1px solid var(--line); }
+    .readiness-list { display:grid; gap:8px; }
+    .readiness-step { min-width:0; display:grid; grid-template-columns:24px minmax(0,1fr) auto; gap:12px; align-items:center; padding:14px; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+    .readiness-marker { width:24px; height:24px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:50%; color:var(--muted); font-size:12px; font-weight:800; }
+    .readiness-step.passed .readiness-marker { color:var(--accent-ink); border-color:var(--accent); background:var(--accent); }
+    .readiness-step-copy { min-width:0; }
+    .readiness-label { color:var(--text); font-size:13px; font-weight:700; }
+    .readiness-description { margin-top:3px; color:var(--muted); font-size:11px; line-height:1.45; }
+    .readiness-action { min-height:44px; display:grid; align-content:center; justify-items:start; gap:1px; padding:6px 13px; border:1px solid var(--line-strong); border-radius:6px; color:var(--accent); background:var(--surface); font-size:12px; font-weight:700; text-decoration:none; }
+    .readiness-action-surface { color:var(--muted); font-size:9px; font-weight:800; line-height:1.2; text-transform:uppercase; }
+    .readiness-action-label { line-height:1.25; }
+    .product-readiness-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; overflow:hidden; margin-bottom:14px; border:1px solid var(--line); border-radius:6px; background:var(--line); }
+    .product-readiness-metric { min-width:0; padding:13px 14px; background:var(--surface); }
+    .product-readiness-metric strong, .product-readiness-metric span { display:block; }
+    .product-readiness-metric strong { color:var(--text); font-size:18px; }
+    .product-readiness-metric span { margin-top:3px; color:var(--muted); font-size:10px; font-weight:750; text-transform:uppercase; }
+    .product-readiness-groups { display:grid; gap:8px; }
+    .product-readiness-group { overflow:hidden; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+    .product-readiness-group > summary { min-height:50px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; cursor:pointer; list-style:none; }
+    .product-readiness-group > summary::-webkit-details-marker { display:none; }
+    .product-readiness-group > summary:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent); outline-offset:-3px; }
+    .product-readiness-group-copy { min-width:0; }
+    .product-readiness-group-copy strong, .product-readiness-group-copy span { display:block; }
+    .product-readiness-group-copy strong { color:var(--text); font-size:13px; }
+    .product-readiness-group-copy span { margin-top:2px; color:var(--muted); font-size:11px; }
+    .product-readiness-group-state { flex:0 0 auto; color:var(--muted); font-size:11px; font-weight:750; }
+    .product-readiness-group.ready .product-readiness-group-state { color:var(--positive); }
+    .product-readiness-group .readiness-list { gap:0; border-top:1px solid var(--line); }
+    .product-readiness-group .readiness-step { border:0; border-bottom:1px solid var(--line); border-radius:0; }
+    .product-readiness-group .readiness-step:last-child { border-bottom:0; }
+    .product-readiness-evidence { display:block; margin-top:3px; color:var(--muted); font-size:10px; line-height:1.45; overflow-wrap:anywhere; }
+    .product-readiness-next { display:block; margin-top:5px; color:var(--text); font-size:11px; line-height:1.45; }
+    .usage-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; overflow:hidden; border:1px solid var(--line); border-radius:6px; background:var(--line); }
+    .usage-metric { min-width:0; padding:14px; background:var(--surface); }
+    .usage-value { display:block; overflow:hidden; color:var(--text); font-size:21px; font-weight:750; text-overflow:ellipsis; }
+    .usage-label { display:block; margin-top:4px; color:var(--muted); font-size:11px; }
+    .usage-models { margin-top:10px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .usage-reliability { margin-top:14px; }
+    .usage-state { color:var(--accent); }
+    .usage-state.degraded { color:var(--danger); }
+    .quality-boundary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; border:1px solid var(--line); border-radius:6px; background:var(--line); }
+    .quality-boundary > div { padding:14px; background:var(--surface); }
+    .quality-boundary strong { display:block; color:var(--text); font-size:13px; }
+    .quality-boundary span { display:block; margin-top:4px; color:var(--muted); font-size:11px; line-height:1.45; }
+    .quality-toolbar { display:grid; grid-template-columns:auto repeat(3,minmax(140px,180px)) auto; gap:8px; align-items:end; }
+    .quality-toolbar .check { min-height:44px; display:flex; align-items:center; gap:7px; padding:0 4px; white-space:nowrap; }
+    .quality-toolbar .check input { width:18px; min-height:18px; margin:0; }
+    .quality-summary { display:grid; gap:5px; margin:14px 0; padding:12px 14px; border-left:3px solid var(--accent); background:var(--soft); color:var(--muted); font-size:12px; line-height:1.45; }
+    .quality-summary strong { color:var(--text); }
+    .quality-list { overflow:hidden; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+    .quality-example { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; min-height:78px; padding:13px 14px; border-bottom:1px solid var(--line); }
+    .quality-example:last-child { border-bottom:0; }
+    .quality-example-copy { min-width:0; }
+    .quality-example-title { color:var(--text); font-size:13px; font-weight:720; line-height:1.4; overflow-wrap:anywhere; }
+    .quality-example-meta { display:flex; flex-wrap:wrap; gap:5px 9px; margin-top:5px; color:var(--muted); font-size:11px; }
+    .quality-example-kind { color:var(--accent-strong); font-weight:750; text-transform:uppercase; }
+    .quality-example-scenario { padding:2px 6px; border:1px solid var(--line); border-radius:999px; color:var(--text); background:var(--bg); font-weight:700; }
+    .quality-actions { display:flex; gap:6px; justify-content:flex-end; }
+    .quality-actions button { min-height:44px; }
+    .quality-state { padding:24px 16px; color:var(--muted); text-align:center; }
+    .account-diagnostics { border-top:1px solid var(--line); }
+    .account-diagnostics > summary { min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 2px; color:var(--text); cursor:pointer; list-style:none; }
+    .account-diagnostics > summary::-webkit-details-marker { display:none; }
+    .account-diagnostics > summary:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent); outline-offset:4px; }
+    .account-diagnostics-copy { min-width:0; display:grid; gap:3px; }
+    .account-diagnostics-copy strong { font-size:14px; }
+    .account-diagnostics-copy span { color:var(--muted); font-size:12px; line-height:1.45; }
+    .account-diagnostics-toggle { width:28px; height:28px; display:grid; flex:0 0 auto; place-items:center; border:1px solid var(--line-strong); border-radius:50%; color:var(--accent); font-size:19px; line-height:1; }
+    .account-diagnostics[open] .account-diagnostics-toggle { transform:rotate(45deg); }
+    .account-diagnostics-body { display:grid; gap:0; }
+    .danger-form { grid-template-columns:minmax(220px,1fr) auto; border-color:color-mix(in srgb,var(--danger) 42%,var(--line)); background:var(--danger-soft); }
+    .danger-form button { color:#fff; background:var(--danger); border-color:var(--danger); }
+    .bottom-nav { display:none; }
+    @media (max-width:820px) {
+      .account-layout { grid-template-columns:1fr; gap:8px; }
+      .account-nav { position:static; display:flex; gap:2px; overflow-x:auto; padding:0 0 10px; border-bottom:1px solid var(--line); }
+      .account-nav a { min-width:max-content; border-left:0; border-bottom:3px solid transparent; }
+      .account-nav a:hover, .account-nav a:focus-visible { border-left-color:transparent; border-bottom-color:var(--accent); }
+    }
+    @media (max-width:680px) {
+      body { padding-bottom:calc(58px + env(safe-area-inset-bottom)); }
+      header { align-items:center; padding-left:12px; padding-right:12px; }
+      .brand nav { display:none; }
+      header .status { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      form { grid-template-columns:1fr; }
+      .member { grid-template-columns:minmax(0,1fr) 110px 36px; padding:10px; }
+      .workspace-name { font-size:24px; }
+      #deviceForm { grid-template-columns:1fr; }
+      .device { grid-template-columns:1fr; }
+      .device-actions { justify-content:flex-start; }
+      .pairing-receipt-head { align-items:stretch; flex-direction:column; }
+      .pairing-steps { grid-template-columns:1fr; }
+      .pairing-success { grid-template-columns:38px minmax(0,1fr); }
+      .pairing-success .button { grid-column:1/-1; width:100%; }
+      .token-row { grid-template-columns:1fr; }
+      .data-actions { align-items:stretch; flex-direction:column; }
+      .data-actions .button, .data-actions button { width:100%; }
+      .readiness-list { grid-template-columns:1fr; }
+      .readiness-step { grid-template-columns:24px minmax(0,1fr); }
+      .readiness-action { grid-column:2; justify-self:start; }
+      .product-readiness-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .product-readiness-group .readiness-action { grid-column:2; width:100%; }
+      .usage-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .quality-toolbar { grid-template-columns:1fr 1fr; }
+      .quality-toolbar > button { width:100%; }
+      .quality-example { grid-template-columns:1fr; }
+      .quality-actions { justify-content:flex-start; }
+      .bottom-nav { position:fixed; z-index:30; left:0; right:0; bottom:0; height:calc(58px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:repeat(4,1fr); padding-bottom:env(safe-area-inset-bottom); border-top:1px solid var(--line); background:var(--surface); }
+      .bottom-nav a { display:grid; place-items:center; color:var(--muted); text-decoration:none; font-size:12px; font-weight:700; }
+      .bottom-nav a.active { color:var(--accent); }
+    }
+  </style>
+</head>
+<body class="product-app">
+  <header class="product-header">
+    <div class="brand product-brand"><span class="product-mark" aria-hidden="true">M</span><div class="product-title"><h1>Magpie</h1><span class="product-context" data-product-context>Account</span></div><nav class="product-nav" data-product-nav aria-label="Product views"></nav></div>
+    <div id="status" class="status product-status">Loading account</div>
+  </header>
+  <main id="main" class="product-page-main account-main">
+    <div class="product-page-heading"><div><h2>Account</h2><p>Workspace, access, backup, and devices.</p></div></div>
+    <div class="account-layout">
+      <nav class="account-nav" aria-label="Account sections">
+        <a href="#workspaceSection" data-account-target="workspaceSection">Workspace</a>
+        <a href="#dataSection" data-account-target="dataSection">Data</a>
+        <a href="#agentConnectionsSection" data-account-target="agentConnectionsSection" hidden>Connections</a>
+        <a href="#hardwareInterfacesSection" data-account-target="hardwareInterfacesSection">Hardware</a>
+        <a href="#diagnosticsSection" data-account-target="diagnosticsSection">Advanced</a>
+      </nav>
+      <div class="account-sections">
+    <section id="workspaceSection" class="product-section" aria-busy="true"><div class="product-load-state"><strong>Loading account</strong><span>Gathering workspace, people, devices, and setup.</span></div></section>
+    <section id="workspaceSettingsSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Workspace name</h2><p class="copy product-section-copy">Shown to everyone who shares this storage.</p></div></div>
+      <form id="renameWorkspaceForm">
+        <label>Name<input id="renameWorkspaceName" required maxlength="120"></label>
+        <button id="renameWorkspaceButton" type="submit">Save name</button>
+      </form>
+      <p id="renameWorkspaceMessage" class="message" role="status"></p>
+    </section>
+    <section id="readinessSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Workspace setup</h2><p id="readinessSummary" class="copy product-section-copy">Checking your storage setup.</p></div></div>
+      <div id="readinessList" class="readiness-list"></div>
+    </section>
+    <section id="inviteSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Invite someone</h2><p class="copy product-section-copy">Give another person access to this storage workspace.</p></div></div>
+      <form id="inviteForm">
+        <label>Email<input id="inviteEmail" type="email" autocomplete="email" required></label>
+        <label>Role<select id="inviteRole"><option value="member">Member</option><option value="viewer">Viewer</option><option value="admin">Admin</option></select></label>
+        <button id="inviteButton" type="submit">Send invite</button>
+      </form>
+      <p id="message" class="message" role="status"></p>
+    </section>
+    <section id="membersSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>People</h2><p class="copy product-section-copy">Workspace access and permissions.</p></div></div>
+      <div id="members" class="member-list"></div>
+    </section>
+    <section id="dataSection" class="product-section">
+      <div class="section-head product-section-head"><div><h2>Data and backup</h2><p class="copy product-section-copy">Download the whole storage graph, inventory, photos, and learned rules. CSV includes readable place paths, and every restore is previewed before it merges.</p></div></div>
+      <div class="data-actions">
+        <a class="button" href="/export/inventory.json" download="magpie-backup.json">Download backup</a>
+        <a class="button" href="/export/inventory.csv" download="magpie-inventory.csv">Download CSV</a>
+        <a class="button" href="/export/inventory.pdf" download="magpie-inventory.pdf">Inventory PDF</a>
+        <label id="backupFileLabel" hidden>Backup file<input id="backupFile" type="file" accept="application/json,.json"></label>
+        <label id="csvFileLabel" hidden>Inventory CSV<input id="csvFile" type="file" accept="text/csv,.csv"></label>
+      </div>
+      <div id="backupPreview" class="backup-preview" hidden><p id="backupSummary" class="copy"></p><button id="restoreBackup" type="button">Restore backup</button></div>
+      <div id="csvPreview" class="import-preview" hidden><p id="csvSummary" class="copy"></p><label id="csvDefaultLocationLabel" hidden>Put rows without a place in<select id="csvDefaultLocation"></select></label><button id="importCsv" type="button">Import inventory</button></div>
+      <p id="backupMessage" class="message" role="status"></p>
+    </section>
+    <section id="agentConnectionsSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Agent connections</h2><p class="copy product-section-copy">Workspace access for Codex, Claude, and other MCP clients.</p></div></div>
+      <form id="agentConnectionForm" hidden>
+        <label>Connection name<input id="agentConnectionName" required maxlength="80" placeholder="Workshop Codex" autocomplete="off"></label>
+        <button id="createAgentConnectionButton" type="submit">Create connection</button>
+      </form>
+      <div id="agentConnectionToken" class="token-panel" hidden>
+        <strong>Connection details</strong>
+        <textarea id="agentConnectionDetails" class="pairing-command" readonly aria-label="Agent connection details"></textarea>
+        <div class="pairing-actions"><button class="secondary" id="copyAgentConnection" type="button">Copy connection</button><span class="copy">This token is shown once.</span></div>
+      </div>
+      <p id="agentConnectionMessage" class="message" role="status"></p>
+      <div id="agentConnections" class="device-list"></div>
+    </section>
+    <section id="hardwareInterfacesSection" class="product-section">
+      <div class="section-head product-section-head"><div><h2>Hardware interfaces</h2><p class="copy product-section-copy">Open an interface for a connected cabinet, hands-free screen, or check station.</p></div></div>
+      <nav class="device-surfaces" aria-label="Hardware interfaces">
+        <a class="button secondary" href="/kiosk">Kiosk</a>
+        <a class="button secondary" href="/kiosk?mode=voice-check">Voice check</a>
+        <a class="button secondary" href="/cabinet">Cabinet console</a>
+        <a class="button secondary" href="/check-station">Check station</a>
+      </nav>
+    </section>
+    <section id="devicesSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Devices</h2><p class="copy product-section-copy">Cabinet controllers, kiosks, and printers.</p></div></div>
+      <form id="deviceForm" hidden>
+        <label>What are you connecting?<select id="deviceProfile"><option value="cabinet">Cabinet</option><option value="controller">Light controller</option><option value="voice">Voice station</option><option value="screen">Kiosk screen</option><option value="printer">Label printer</option></select></label>
+        <label>Device name<input id="deviceId" required maxlength="80" placeholder="Garage cabinet" autocomplete="off" aria-describedby="deviceIdPreview"></label>
+        <button id="enrollDeviceButton" type="submit">Pair device</button>
+        <div class="device-enrollment-note"><strong id="deviceProfileSummary"></strong><span id="deviceIdPreview" role="status"></span></div>
+      </form>
+      <div id="devicePairing" class="token-panel" hidden>
+        <div class="pairing-receipt-head">
+          <div class="pairing-receipt-title"><strong id="devicePairingTitle">Connect device</strong><span id="devicePairingState" class="pairing-state" role="status">Waiting for setup</span></div>
+          <span id="devicePairingExpiry" class="copy"></span>
+        </div>
+        <div id="devicePairingSteps" class="pairing-steps" aria-label="Device pairing progress">
+          <div class="pairing-step active" data-pairing-step="0"><span class="pairing-step-number">1</span><span>Copy the setup command</span></div>
+          <div class="pairing-step" data-pairing-step="1"><span class="pairing-step-number">2</span><span>Run it on the device</span></div>
+          <div class="pairing-step" data-pairing-step="2"><span class="pairing-step-number">3</span><span>Wait for Magpie to connect</span></div>
+        </div>
+        <textarea id="devicePairingCommand" class="pairing-command" readonly aria-label="Device setup command"></textarea>
+        <div id="devicePairingActions" class="pairing-actions"><button class="secondary" id="copyDevicePairing" type="button">Copy setup command</button><button class="secondary" id="checkDeviceConnection" type="button">Check connection</button></div>
+        <div id="devicePairingSuccess" class="pairing-success" hidden><span class="pairing-success-mark" aria-hidden="true">&#10003;</span><div><strong id="devicePairingSuccessTitle">Device connected</strong><span id="devicePairingSuccessCopy">Magpie can now reach this device.</span></div><a class="button secondary" href="/cabinet">Open cabinet</a></div>
+      </div>
+      <p id="deviceMessage" class="message" role="status"></p>
+      <div id="devices" class="device-list"></div>
+    </section>
+    <details id="diagnosticsSection" class="account-diagnostics">
+      <summary>
+        <span class="account-diagnostics-copy"><strong>Diagnostics and learning</strong><span>Service build, model usage, voice activity, and learning review.</span></span>
+        <span class="account-diagnostics-toggle" aria-hidden="true">+</span>
+      </summary>
+      <div class="account-diagnostics-body">
+        <section id="productReadinessSection" class="product-section" aria-busy="true">
+          <div class="section-head product-section-head"><div><h2>Product readiness</h2><p id="productReadinessSummary" class="copy product-section-copy">Checking software, storage, and agent evidence.</p></div></div>
+          <div id="productReadinessOverview" class="product-readiness-overview"></div>
+          <div id="productReadinessGroups" class="product-readiness-groups"><div class="quality-state">Loading product gates.</div></div>
+        </section>
+        <section id="runtimeSection" class="product-section" hidden>
+          <div class="section-head product-section-head"><div><h2>Magpie service</h2><p id="runtimeSummary" class="copy product-section-copy">Build and runtime connected to this account.</p></div></div>
+          <div class="usage-grid">
+            <div class="usage-metric"><strong id="runtimeBuild" class="usage-value">Unknown</strong><span class="usage-label">Build</span></div>
+            <div class="usage-metric"><strong id="runtimeRole" class="usage-value">Unknown</strong><span class="usage-label">Service role</span></div>
+            <div class="usage-metric"><strong id="runtimeStorage" class="usage-value">Unknown</strong><span class="usage-label">Storage authority</span></div>
+            <div class="usage-metric"><strong id="runtimeWorkspace" class="usage-value">Unknown</strong><span class="usage-label">Workspace scope</span></div>
+          </div>
+          <div id="runtimeDetails" class="usage-models"></div>
+        </section>
+        <section id="usageSection" class="product-section" hidden>
+          <div class="section-head product-section-head"><div><h2>Agent usage</h2><p id="usageWindow" class="copy product-section-copy">Recent recorded usage. Provider billing remains authoritative.</p></div></div>
+          <div class="usage-grid">
+            <div class="usage-metric"><strong id="usageRequests" class="usage-value">0</strong><span class="usage-label">Model calls</span></div>
+            <div class="usage-metric"><strong id="usageInput" class="usage-value">0</strong><span class="usage-label">Input tokens</span></div>
+            <div class="usage-metric"><strong id="usageOutput" class="usage-value">0</strong><span class="usage-label">Output tokens</span></div>
+            <div class="usage-metric"><strong id="usageCached" class="usage-value">0</strong><span class="usage-label">Cached input</span></div>
+          </div>
+          <div id="usageModels" class="usage-models"></div>
+          <div class="usage-grid usage-reliability">
+            <div class="usage-metric"><strong id="usageAssistantInteractions" class="usage-value">0</strong><span class="usage-label">Assistant interactions</span></div>
+            <div class="usage-metric"><strong id="usageDeterministicInteractions" class="usage-value">0</strong><span class="usage-label">Handled locally</span></div>
+            <div class="usage-metric"><strong id="usageModelInteractions" class="usage-value">0</strong><span class="usage-label">Model-routed interactions</span></div>
+            <div class="usage-metric"><strong id="usageModelRate" class="usage-value">—</strong><span class="usage-label">Model route rate</span></div>
+          </div>
+          <div class="usage-grid usage-reliability">
+            <div class="usage-metric"><strong id="usageSucceeded" class="usage-value">0</strong><span class="usage-label">Successful model interactions</span></div>
+            <div class="usage-metric"><strong id="usageFailures" class="usage-value">0</strong><span class="usage-label">Failed model interactions</span></div>
+            <div class="usage-metric"><strong id="usageFailureRate" class="usage-value">—</strong><span class="usage-label">Failure rate</span></div>
+            <div class="usage-metric"><strong id="usageProviderState" class="usage-value usage-state">Available</strong><span class="usage-label">Provider state</span></div>
+          </div>
+          <div id="usageReliability" class="usage-models" role="status"></div>
+          <p class="copy">Token counts come from recorded model responses and may omit calls where a provider returned no usage. Check the provider account for dollar spend and billing limits.</p>
+        </section>
+        <section id="storageUsageSection" class="product-section" hidden>
+          <div class="section-head product-section-head"><div><h2>Database transfer</h2><p id="storageUsageWindow" class="copy product-section-copy">Observed since this Magpie service started.</p></div></div>
+          <div class="usage-grid">
+            <div class="usage-metric"><strong id="storageUsageRequests" class="usage-value">0</strong><span class="usage-label">Logical requests</span></div>
+            <div class="usage-metric"><strong id="storageUsageBytes" class="usage-value">0 B</strong><span class="usage-label">Response bodies</span></div>
+            <div class="usage-metric"><strong id="storageUsageRate" class="usage-value">0/min</strong><span class="usage-label">Request rate</span></div>
+            <div class="usage-metric"><strong id="storageUsageErrors" class="usage-value">0</strong><span class="usage-label">Errors</span></div>
+          </div>
+          <div id="storageUsageOperations" class="usage-models"></div>
+          <p class="copy">These process-local counters help identify noisy Magpie routes without making another database query. Supabase Usage remains authoritative for billed egress, retries, and protocol overhead.</p>
+        </section>
+        <section id="voiceUsageSection" class="product-section" hidden>
+          <div class="section-head product-section-head"><div><h2>Voice privacy &amp; calls</h2><p id="voiceUsageWindow" class="copy product-section-copy">Since the listener started.</p></div></div>
+          <div class="usage-grid">
+            <div class="usage-metric"><strong id="voiceSpeechClips" class="usage-value">0</strong><span class="usage-label">Speech clips</span></div>
+            <div class="usage-metric"><strong id="voiceIgnoredClips" class="usage-value">0</strong><span class="usage-label">Ignored locally</span></div>
+            <div class="usage-metric"><strong id="voiceWakeDetections" class="usage-value">0</strong><span class="usage-label">Wake detections</span></div>
+            <div class="usage-metric"><strong id="voiceWakeRate" class="usage-value">—</strong><span class="usage-label">Wake rate</span></div>
+            <div class="usage-metric"><strong id="voiceSttCalls" class="usage-value">0</strong><span class="usage-label">Cloud transcriptions</span></div>
+            <div class="usage-metric"><strong id="voiceAgentCalls" class="usage-value">0</strong><span class="usage-label">Assistant requests</span></div>
+            <div class="usage-metric"><strong id="voiceTtsCalls" class="usage-value">0</strong><span class="usage-label">Cloud speech replies</span></div>
+          </div>
+          <div id="voicePrivacyState" class="usage-models"></div>
+        </section>
+        <section id="agentQualitySection" class="product-section" aria-busy="true">
+          <div class="section-head product-section-head"><div><h2>Agent quality</h2><p class="copy product-section-copy">Review what Magpie may learn and whether trusted examples cover the core storage workflows.</p></div></div>
+          <div class="quality-boundary" aria-label="Agent channel responsibilities">
+            <div><strong>Voice executes storage work</strong><span>Find, put away, confirm, change, cancel, undo, and clear.</span></div>
+            <div><strong>The Storage UI configures places</strong><span>Create, rename, move, archive, and remove places visually.</span></div>
+          </div>
+          <div class="quality-toolbar">
+            <button class="secondary" id="agentQualityRefresh" type="button">Refresh</button>
+            <label>Status<select id="agentQualityStatus"><option value="pending" selected>Pending</option><option value="approved">Approved</option><option value="promoted">Promoted</option><option value="rejected">Rejected</option><option value="">All active</option></select></label>
+            <label>Kind<select id="agentQualityKind"><option value="">All kinds</option><option value="manual">Manual</option><option value="confirmed">Confirmed</option><option value="correction">Correction</option><option value="item_correction">Item correction</option><option value="review_correction">Review correction</option><option value="review_approved">Review approved</option></select></label>
+            <label>Workflow<select id="agentQualityScenario"><option value="">All workflows</option><option value="putaway">Put away</option><option value="rules">Rules</option><option value="correction">Correction</option><option value="photo">Photo</option><option value="organization">Organization</option></select></label>
+            <label class="check"><input id="agentQualityRejected" type="checkbox">Show rejected</label>
+          </div>
+          <div class="quality-summary">
+            <strong id="agentQualityCoverage">Checking approved replay coverage.</strong>
+            <span id="agentQualitySummary">Loading learning evidence.</span>
+          </div>
+          <div id="agentQualityList" class="quality-list"><div class="quality-state">Loading reviewed examples.</div></div>
+          <div class="pairing-actions"><button class="secondary" id="agentQualityApproveVisible" type="button">Approve visible</button><span id="agentQualityStatusText" class="copy" role="status">Only approve examples you trust as release evidence.</span></div>
+        </section>
+      </div>
+    </details>
+    <section id="dangerSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Delete workspace</h2><p class="copy product-section-copy">Permanently remove this storage graph, inventory, photos, rules, history, members, and device access.</p></div></div>
+      <form id="deleteWorkspaceForm" class="danger-form">
+        <label>Type <strong id="deleteWorkspaceName"></strong> to confirm<input id="deleteWorkspaceConfirmation" autocomplete="off" required></label>
+        <button id="deleteWorkspaceButton" type="submit" disabled>Delete workspace</button>
+      </form>
+      <p id="deleteWorkspaceMessage" class="message" role="status"></p>
+    </section>
+    <section id="leaveSection" class="product-section" hidden>
+      <div class="section-head product-section-head"><div><h2>Leave workspace</h2><p class="copy product-section-copy">Remove your access to this shared storage. An owner or admin can invite you again.</p></div></div>
+      <button id="leaveWorkspaceButton" type="button" class="danger">Leave workspace</button>
+      <p id="leaveWorkspaceMessage" class="message" role="status"></p>
+    </section>
+      </div>
+    </div>
+  </main>
+  <nav class="bottom-nav product-bottom-nav" data-product-nav aria-label="Mobile product views"></nav>
+  <script>
+    const byId = (id) => document.getElementById(id);
+    let identity = null;
+    let canManage = false;
+    let canRestoreBackup = true;
+    let backupSnapshot = null;
+    let csvImportText = "";
+    let csvImportDefaultLocationId = "";
+    let workspaceName = "";
+    let deviceConnectionWatch = null;
+    let activePairingDeviceId = "";
+    let devicePairingAvailable = true;
+    let visibleAgentQualityIds = [];
+    let canManageAgentQuality = true;
+    let diagnosticsLoaded = false;
+    let diagnosticsLoading = null;
+    const PROFILE_SCOPES = {
+      cabinet: ["commands", "screen", "voice"],
+      controller: ["commands"],
+      voice: ["voice"],
+      screen: ["screen"],
+      printer: ["commands", "printer"],
+    };
+    const PROFILE_DETAILS = {
+      cabinet: {label:"Cabinet", description:"Controls lights and runs the hands-free kiosk and voice experience."},
+      controller: {label:"Light controller", description:"Controls connected lights without a screen or microphone."},
+      voice: {label:"Voice station", description:"Listens for find and put-away requests and speaks responses."},
+      screen: {label:"Kiosk screen", description:"Shows hands-free Magpie activity and confirmations."},
+      printer: {label:"Label printer", description:"Prints location and item labels for this workspace."},
+    };
+    const EDGE_SERVICE_LABELS = {
+      lights:"Lights",
+      voice:"Voice",
+      screen:"Kiosk screen",
+      printer:"Label printer",
+      check_station:"Check station",
+    };
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+
+    function syncAccountNavigation() {
+      document.querySelectorAll("[data-account-target]").forEach((link) => {
+        const section = byId(link.dataset.accountTarget);
+        link.hidden = !section || section.hidden;
+      });
+    }
+
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = body.detail;
+        const message = typeof detail === "string" ? detail : Array.isArray(detail?.errors) ? detail.errors.join("; ") : `Request failed (${response.status})`;
+        throw new Error(message);
+      }
+      return body;
+    }
+    const setStatus = (text) => { byId("status").textContent = text; };
+    function setMessage(text, error = false) { byId("message").textContent = text; byId("message").className = `message${error ? " error" : ""}`; }
+    function roleOptions(member) {
+      const allowed = identity.role === "owner" ? ["admin","member","viewer"] : ["member","viewer"];
+      return allowed.map((role) => `<option value="${role}"${member.role === role ? " selected" : ""}>${role[0].toUpperCase() + role.slice(1)}</option>`).join("");
+    }
+    function renderMembers(members) {
+      byId("members").innerHTML = members.length ? members.map((member) => {
+        const manageableRole = identity.role === "owner" || ["member", "viewer"].includes(member.role);
+        const editable = canManage && manageableRole && member.role !== "owner" && member.user_id !== identity.user_id;
+        const role = editable ? `<select data-role="${escapeHtml(member.user_id)}" aria-label="Role for ${escapeHtml(member.email || member.user_id)}">${roleOptions(member)}</select>` : `<span class="role-label">${escapeHtml(member.role)}</span>`;
+        const remove = editable ? `<button class="icon" data-remove="${escapeHtml(member.user_id)}" title="Remove member" aria-label="Remove ${escapeHtml(member.email || member.user_id)}">&times;</button>` : "<span></span>";
+        return `<div class="member"><div><div class="member-email">${escapeHtml(member.email || "Pending account")}</div><div class="member-id">${escapeHtml(member.user_id)}</div></div>${role}${remove}</div>`;
+      }).join("") : '<div class="empty">No workspace members.</div>';
+      byId("members").querySelectorAll("[data-role]").forEach((select) => select.onchange = () => updateRole(select.dataset.role, select.value));
+      byId("members").querySelectorAll("[data-remove]").forEach((button) => button.onclick = () => removeMember(button.dataset.remove));
+    }
+    function deviceLastSeen(value) {
+      if (!value) return "Never connected";
+      const date = new Date(typeof value === "number" ? value * 1000 : value);
+      if (Number.isNaN(date.getTime()) || date.getTime() === 0) return "Never connected";
+      return `Seen ${date.toLocaleString()}`;
+    }
+    function deviceSlug(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63)
+        .replace(/-+$/g, "");
+    }
+    function deviceProfileForScopes(scopes) {
+      const signature = [...new Set(scopes || [])].sort().join("|");
+      return Object.keys(PROFILE_SCOPES).find((profile) =>
+        [...PROFILE_SCOPES[profile]].sort().join("|") === signature
+      ) || "";
+    }
+    function updateDeviceEnrollmentPreview() {
+      const profile = byId("deviceProfile").value;
+      const details = PROFILE_DETAILS[profile] || {label:"Device", description:"Uses only the access required for its role."};
+      const deviceId = deviceSlug(byId("deviceId").value);
+      byId("deviceProfileSummary").textContent = details.description;
+      byId("deviceIdPreview").textContent = deviceId
+        ? `Magpie will identify it as ${deviceId}.`
+        : `Enter a name; Magpie will create a secure device ID.`;
+    }
+    function renderDevices(devices, manageable) {
+      byId("devices").innerHTML = devices.length ? devices.map((device) => {
+        const profile = deviceProfileForScopes(device.credential_scopes);
+        const role = PROFILE_DETAILS[profile]?.label || "Custom device";
+        const reportedCapabilities = (device.reported_capabilities || device.capabilities || []).join(", ") || "None";
+        const runtimeCapabilities = (device.runtime_capabilities || []).join(", ") || "None";
+        const access = (device.credential_scopes || []).join(", ") || "No access granted";
+        const credential = device.enrolled ? `Token ending ${escapeHtml(device.credential_hint || "")}` : "No managed token";
+        const pairing = device.pairing_pending ? `Pairing pending until ${escapeHtml(new Date(device.pairing_expires_at).toLocaleTimeString())}` : "";
+        const fallback = device.environment_fallback ? "Static fallback active" : "";
+        const bindings = (device.bound_locations || []).map((location) => location.label || location.id);
+        const bindingState = bindings.length ? `Controls: ${bindings.join(", ")}` : "Not assigned to storage";
+        const connectionState = device.connection_state || "unpaired";
+        const connectionMessage = device.connection_message || "Connection status unavailable.";
+        const serviceRows = Object.entries(device.service_readiness || {}).filter(([, service]) => service?.granted);
+        const readyServices = serviceRows.filter(([, service]) => service.ready).map(([key]) => EDGE_SERVICE_LABELS[key] || key);
+        const waitingServices = serviceRows.filter(([, service]) => !service.ready).map(([key]) => EDGE_SERVICE_LABELS[key] || key);
+        const serviceState = serviceRows.length
+          ? `${readyServices.length ? `Ready: ${readyServices.join(", ")}` : "No services ready"}${waitingServices.length ? ` · Waiting: ${waitingServices.join(", ")}` : ""}`
+          : "No hardware access granted";
+        const reconnect = manageable && device.enrolled && devicePairingAvailable ? `<button class="secondary" data-rotate-device="${escapeHtml(device.device_id)}">Reconnect</button>` : "";
+        const revoke = manageable && device.enrolled ? `<button class="danger" data-revoke-device="${escapeHtml(device.device_id)}">Revoke</button>` : "";
+        const actions = reconnect || revoke ? `<div class="device-actions">${reconnect}${revoke}</div>` : "";
+        return `<div class="device"><div><div class="device-heading"><div class="device-name">${escapeHtml(role)}</div><span class="device-id">${escapeHtml(device.device_id)}</span><span class="device-state ${escapeHtml(connectionState)}">${escapeHtml(connectionState)}</span></div><div class="device-meta"><span>${escapeHtml(connectionMessage)}</span><span>${escapeHtml(serviceState)}</span><span>${escapeHtml(bindingState)}</span><span>${escapeHtml(device.version || "Version unknown")}</span><span>${escapeHtml(deviceLastSeen(device.last_seen_at))}</span><span>Granted: ${escapeHtml(access)}</span><span>Hardware report: ${escapeHtml(reportedCapabilities)}</span><span>Live services: ${escapeHtml(runtimeCapabilities)}</span><span>${escapeHtml(credential)}</span>${pairing ? `<span>${pairing}</span>` : ""}${fallback ? `<span>${escapeHtml(fallback)}</span>` : ""}</div></div>${actions}</div>`;
+      }).join("") : '<div class="empty">No edge devices.</div>';
+      byId("devices").querySelectorAll("[data-rotate-device]").forEach((button) => button.onclick = () => rotateDevice(button.dataset.rotateDevice));
+      byId("devices").querySelectorAll("[data-revoke-device]").forEach((button) => button.onclick = () => revokeDevice(button.dataset.revokeDevice));
+    }
+    function renderAgentConnections(credentials, manageable) {
+      byId("agentConnections").innerHTML = credentials.length ? credentials.map((credential) => {
+        const revoked = Boolean(credential.revoked_at);
+        const state = revoked ? `Revoked ${new Date(credential.revoked_at).toLocaleString()}` : credential.last_used_at ? `Last used ${new Date(credential.last_used_at).toLocaleString()}` : "Never used";
+        const action = manageable && !revoked ? `<div class="device-actions"><button class="danger" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button></div>` : "";
+        return `<div class="device"><div><div class="device-name">${escapeHtml(credential.name)}</div><div class="device-meta"><span>Token ending ${escapeHtml(credential.token_hint || "")}</span><span>${escapeHtml(state)}</span></div></div>${action}</div>`;
+      }).join("") : '<div class="empty">No agent connections.</div>';
+      byId("agentConnections").querySelectorAll("[data-revoke-agent]").forEach((button) => button.onclick = () => revokeAgentConnection(button.dataset.revokeAgent));
+    }
+    function renderWorkspaceReadiness(data) {
+      const checks = Array.isArray(data.checks) ? data.checks : [];
+      const nextCheckKey = checks.find((check) => !check.passed)?.key || "";
+      const requiredPassed = Number(data.required_passed || 0);
+      const requiredTotal = Number(data.required_total || 0);
+      byId("readinessSummary").textContent = data.summary || (data.ready
+        ? "Magpie is ready for find and put-away."
+        : `${requiredPassed} of ${requiredTotal} required setup steps are complete.`);
+      byId("readinessList").innerHTML = checks.map((check) => {
+        const passed = Boolean(check.passed);
+        const action = check.key === nextCheckKey && check.action?.href && check.action?.label
+          ? readinessAction(check.action)
+          : "";
+        return `<div class="readiness-step${passed ? " passed" : ""}"><span class="readiness-marker" aria-hidden="true">${passed ? "✓" : ""}</span><div class="readiness-step-copy"><div class="readiness-label">${escapeHtml(check.label)}</div><div class="readiness-description">${escapeHtml(check.description || "")}</div></div>${action}</div>`;
+      }).join("");
+      byId("readinessSection").hidden = checks.length === 0;
+    }
+    function renderProductReadiness(data) {
+      const section = byId("productReadinessSection");
+      if (!data || !Array.isArray(data.groups) || !Array.isArray(data.checks)) {
+        byId("productReadinessSummary").textContent = "Product readiness is unavailable.";
+        byId("productReadinessGroups").innerHTML = '<div class="quality-state" role="alert">The connected service did not return product gates.</div>';
+        section.removeAttribute("aria-busy");
+        return;
+      }
+      const requiredTotal = Number(data.required_total || 0);
+      const passed = Number(data.passed || 0);
+      byId("productReadinessSummary").textContent = data.ready
+        ? `Ready: all ${requiredTotal} required product gates pass.`
+        : `${passed} of ${requiredTotal} required product gates pass.`;
+      byId("productReadinessOverview").innerHTML = data.groups.map((group) => `<div class="product-readiness-metric"><strong>${escapeHtml(group.passed || 0)}/${escapeHtml(group.total || 0)}</strong><span>${escapeHtml(group.label || group.key || "Group")}${group.required === false ? " · optional" : ""}</span></div>`).join("");
+      byId("productReadinessGroups").innerHTML = data.groups.map((group) => {
+        const checks = data.checks.filter((check) => check.group === group.key);
+        const rows = checks.map((check) => {
+          const action = !check.passed && check.action?.href && check.action?.label
+            ? readinessAction(check.action)
+            : "";
+          const next = !check.passed && check.next_step
+            ? `<span class="product-readiness-next">Next: ${escapeHtml(check.next_step)}</span>`
+            : "";
+          return `<div class="readiness-step${check.passed ? " passed" : ""}"><span class="readiness-marker" aria-hidden="true">${check.passed ? "✓" : ""}</span><div class="readiness-step-copy"><div class="readiness-label">${escapeHtml(check.label || check.key || "Product check")}</div><span class="product-readiness-evidence">${escapeHtml(check.evidence || "")}</span>${next}</div>${action}</div>`;
+        }).join("");
+        const requiredLabel = group.required === false ? "Optional enhancement" : "Required";
+        return `<details class="product-readiness-group${group.ready ? " ready" : ""}"${!group.ready && group.required !== false ? " open" : ""}><summary><span class="product-readiness-group-copy"><strong>${escapeHtml(group.label || group.key || "Readiness group")}</strong><span>${escapeHtml(requiredLabel)}</span></span><span class="product-readiness-group-state">${group.ready ? "Ready" : `${escapeHtml(group.passed || 0)} of ${escapeHtml(group.total || 0)}`}</span></summary><div class="readiness-list">${rows}</div></details>`;
+      }).join("");
+      section.removeAttribute("aria-busy");
+    }
+    function readinessAction(action) {
+      const href = String(action?.href || "");
+      const label = String(action?.label || "Continue");
+      let surface = "Open setup";
+      try {
+        const target = new URL(href, location.origin);
+        const view = target.searchParams.get("view");
+        if (target.pathname === "/" || target.pathname === "/mobile") surface = "Ask Magpie";
+        else if (target.pathname === "/storage" && view === "places") surface = "Open Places";
+        else if (target.pathname === "/storage" && view === "rules") surface = "Open Rules";
+        else if (target.pathname === "/storage") surface = "Open Items";
+        else if (target.pathname === "/account") surface = "Open Account";
+      } catch (_error) {
+        // Keep the generic label for malformed or future action URLs.
+      }
+      return `<a class="readiness-action" href="${escapeHtml(href)}"><span class="readiness-action-surface">${escapeHtml(surface)}</span><span class="readiness-action-label">${escapeHtml(label)}</span></a>`;
+    }
+    function runtimeLabel(value) {
+      const text = String(value || "").replaceAll("_", " ").trim();
+      if (text.toLowerCase() === "sqlite") return "SQLite";
+      return text ? text[0].toUpperCase() + text.slice(1) : "Unknown";
+    }
+    function renderRuntime(buildData, healthData) {
+      if (!buildData && !healthData) return;
+      const build = buildData || healthData?.build || {};
+      const runtime = healthData?.runtime || {};
+      const storage = healthData?.storage || {};
+      const fullLabel = build.label || healthData?.build_label || "";
+      const label = [
+        build.version ? `v${build.version}` : "",
+        build.commit ? `${String(build.commit).slice(0, 7)}${build.dirty ? "+" : ""}` : "",
+      ].filter(Boolean).join(" ") || fullLabel;
+      byId("runtimeBuild").textContent = label || "Unknown";
+      byId("runtimeRole").textContent = runtimeLabel(runtime.role);
+      byId("runtimeStorage").textContent = runtimeLabel(runtime.storage_authority || storage.backend);
+      byId("runtimeWorkspace").textContent = runtimeLabel(runtime.workspace_scope);
+      const details = [];
+      if (build.built_at) {
+        const builtAt = new Date(build.built_at);
+        details.push(`Built ${Number.isNaN(builtAt.getTime()) ? build.built_at : builtAt.toLocaleString()}`);
+      }
+      if (runtime.edge_execution) details.push(`Commands: ${String(runtime.edge_execution).replaceAll("_", " ")}`);
+      byId("runtimeDetails").textContent = details.join(" · ");
+      byId("runtimeSummary").textContent = label
+        ? `Connected to ${label}.`
+        : "Connected service did not report a build label.";
+      byId("runtimeSection").hidden = false;
+    }
+    function renderUsage(data) {
+      if (!data || data.schema !== "magpie.agent_usage.v2") return;
+      const usage = data.usage || {};
+      const windowData = data.window || {};
+      const routing = data.routing || {};
+      const reliability = data.reliability || {};
+      const format = (value) => Number(value || 0).toLocaleString();
+      byId("usageRequests").textContent = format(usage.requests);
+      byId("usageInput").textContent = format(usage.input_tokens);
+      byId("usageOutput").textContent = format(usage.output_tokens);
+      byId("usageCached").textContent = format(usage.cached_input_tokens);
+      byId("usageAssistantInteractions").textContent = format(routing.assistant_interactions);
+      byId("usageDeterministicInteractions").textContent = format(routing.deterministic_interactions);
+      byId("usageModelInteractions").textContent = format(routing.model_interactions);
+      byId("usageModelRate").textContent = routing.model_interaction_rate == null
+        ? "—"
+        : `${Math.round(Number(routing.model_interaction_rate) * 100)}%`;
+      byId("usageSucceeded").textContent = format(reliability.successful_interactions);
+      byId("usageFailures").textContent = format(reliability.failed_interactions);
+      byId("usageFailureRate").textContent = reliability.failure_rate == null
+        ? "—"
+        : `${Math.round(Number(reliability.failure_rate) * 100)}%`;
+      const providerState = byId("usageProviderState");
+      providerState.textContent = reliability.degraded ? "Cooldown" : "Available";
+      providerState.classList.toggle("degraded", Boolean(reliability.degraded));
+      const recorded = Number(windowData.metered_interactions || 0);
+      const scanned = Number(windowData.interaction_count || 0);
+      byId("usageWindow").textContent = windowData.may_be_truncated
+        ? `Most recent ${scanned} interactions; ${recorded} include token data.`
+        : `${recorded} of ${scanned} recorded interactions include token data.`;
+      byId("usageModels").textContent = (data.models || []).map((model) => `${model.provider} · ${model.model} · ${format(model.requests)} call${Number(model.requests) === 1 ? "" : "s"}`).join("  |  ") || "No metered model calls yet.";
+      const currentFailures = Array.isArray(reliability.current_provider_failures) ? reliability.current_provider_failures : [];
+      const historicalFailures = Array.isArray(data.failures) ? data.failures : [];
+      const currentText = currentFailures.map((failure) => {
+        const retry = Number(failure.retry_in_seconds || 0);
+        return `${failure.provider} · ${failure.model} · ${String(failure.category || "unavailable").replaceAll("_", " ")}${retry ? ` · retry in ${retry}s` : ""}`;
+      });
+      const historicalText = historicalFailures.map((failure) => `${format(failure.count)} ${String(failure.category || "model error").replaceAll("_", " ")}`);
+      byId("usageReliability").textContent = [
+        currentText.length ? `Current cooldown: ${currentText.join("  |  ")}.` : "No provider cooldown is active.",
+        historicalText.length ? `Recent failures: ${historicalText.join(", ")}.` : "No model failures are recorded in this window."
+      ].join(" ");
+      byId("usageSection").hidden = false;
+    }
+    function renderStorageUsage(data) {
+      if (!data || data.schema !== "magpie.storage_usage.v1" || data.backend !== "supabase") return;
+      const observed = data.observed || {};
+      const requests = Number(observed.logical_requests || 0);
+      const responseBytes = Number(observed.response_bytes || 0);
+      const formatBytes = (value) => {
+        const bytes = Math.max(0, Number(value || 0));
+        if (bytes < 1024) return `${Math.round(bytes)} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+        if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+        return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+      };
+      byId("storageUsageRequests").textContent = requests.toLocaleString();
+      byId("storageUsageBytes").textContent = formatBytes(responseBytes);
+      const requestRate = Number(observed.requests_per_minute || 0);
+      byId("storageUsageRate").textContent = `${requestRate.toFixed(requestRate < 10 ? 1 : 0)}/min`;
+      byId("storageUsageErrors").textContent = Number(observed.errors || 0).toLocaleString();
+      const startedAt = observed.started_at ? new Date(observed.started_at) : null;
+      byId("storageUsageWindow").textContent = startedAt && !Number.isNaN(startedAt.getTime())
+        ? `Observed since ${startedAt.toLocaleString()}. Counters reset when the service restarts.`
+        : "Observed since this Magpie service started. Counters reset when the service restarts.";
+      const operations = Array.isArray(observed.operations) ? observed.operations.slice(0, 6) : [];
+      const transferRate = formatBytes(observed.response_bytes_per_minute || 0);
+      byId("storageUsageOperations").textContent = data.available
+        ? operations.map((operation) => `${operation.method} ${operation.operation} · ${Number(operation.requests || 0).toLocaleString()} request${Number(operation.requests) === 1 ? "" : "s"} · ${formatBytes(operation.response_bytes)}`).join("  |  ") || `No Supabase traffic has been observed by this process yet. Average transfer ${transferRate}/min.`
+        : "Storage traffic metering is unavailable in this service build.";
+      byId("storageUsageSection").hidden = false;
+    }
+    function renderVoiceUsage(data) {
+      const voice = data && data.voice || {};
+      const capabilities = voice.capabilities || {};
+      if (!capabilities.wake_gate) return;
+      const format = (value) => Number(value || 0).toLocaleString();
+      const speechClips = Number(capabilities.speech_clips || 0);
+      const ignoredClips = Number(capabilities.passive_speech_ignored || 0);
+      const wakeDetections = Number(capabilities.wake_detections || 0);
+      const sttCalls = Number(capabilities.cloud_stt_calls || 0);
+      const assistantRequests = Number(
+        capabilities.assistant_requests ?? capabilities.agent_requests ?? 0
+      );
+      byId("voiceSpeechClips").textContent = format(speechClips);
+      byId("voiceIgnoredClips").textContent = format(ignoredClips);
+      byId("voiceWakeDetections").textContent = format(wakeDetections);
+      byId("voiceWakeRate").textContent = capabilities.wake_gate === "local" && speechClips
+        ? `${Math.round((wakeDetections / speechClips) * 100)}%`
+        : "—";
+      byId("voiceSttCalls").textContent = format(sttCalls);
+      byId("voiceAgentCalls").textContent = format(
+        assistantRequests
+      );
+      byId("voiceTtsCalls").textContent = format(capabilities.cloud_tts_calls);
+      const since = Number(capabilities.metrics_since || 0);
+      byId("voiceUsageWindow").textContent = since
+        ? `Since ${new Date(since * 1000).toLocaleString()}. Counters reset when the listener restarts.`
+        : "Since the listener started.";
+      const gate = capabilities.wake_gate === "local" ? "Local wake gate" : "Cloud wake gate";
+      const privacy = capabilities.audio_before_wake_uploaded
+        ? "Speech may be uploaded before a wake word is confirmed."
+        : "Audio before the wake word is not uploaded.";
+      const followUp = capabilities.no_wake_follow_up === "local_confirmation_only"
+        ? "Bare yes/no confirmations stay local."
+        : "Follow-up speech may use cloud transcription.";
+      let health = "";
+      if (capabilities.wake_gate === "local" && speechClips > 0 && wakeDetections === 0) {
+        health = "Microphone heard speech, but the local wake gate has not recognized Magpie.";
+      } else if (wakeDetections > 0 && sttCalls === 0) {
+        health = "The wake gate recognized Magpie, but no cloud transcription followed.";
+      } else if (sttCalls > 0 && assistantRequests === 0) {
+        health = "Speech was transcribed, but no assistant request followed.";
+      } else if (assistantRequests > 0) {
+        health = "Voice requests are reaching Magpie.";
+      }
+      byId("voicePrivacyState").textContent = `${health ? `${health} ` : ""}${gate} · ${privacy} ${followUp}`;
+      byId("voiceUsageSection").hidden = false;
+    }
+    function summarizeAgentQualityAction(example) {
+      const action = example.parsed_action;
+      if (Array.isArray(action)) {
+        return action.map((step) => {
+          const tool = step?.tool || "step";
+          const args = step?.arguments || {};
+          const item = args.item || args.name || args.query || "";
+          const location = args.location_id || args.bin_id || args.destination || "";
+          return [tool, item, location].filter(Boolean).join(" ");
+        }).filter(Boolean).join("; ") || "Plan";
+      }
+      if (action && typeof action === "object") {
+        if (action.approved_review && typeof action.approved_review === "object") {
+          const item = action.approved_review.name || action.approved_review.item || "";
+          const location = action.approved_review.bin_id || action.approved_review.location_id || "";
+          return ["accepted", item, location].filter(Boolean).join(" ");
+        }
+        if (action.before || action.after) {
+          const before = action.before && typeof action.before === "object" ? action.before.name || action.before.item || "" : "";
+          const after = action.after && typeof action.after === "object" ? action.after.name || action.after.item || "" : "";
+          return ["corrected", before, after ? `to ${after}` : ""].filter(Boolean).join(" ");
+        }
+        return [action.action || action.tool || "action", action.bin_id || action.location_id || ""].filter(Boolean).join(" ");
+      }
+      return example.action || "";
+    }
+    function renderAgentQualityExamples(examples) {
+      const list = byId("agentQualityList");
+      visibleAgentQualityIds = (examples || [])
+        .filter((example) => example.review_status === "pending")
+        .map((example) => Number(example.id))
+        .filter(Boolean);
+      if (!examples.length) {
+        list.innerHTML = '<div class="quality-state">No learning examples match these filters.</div>';
+        return;
+      }
+      list.innerHTML = examples.map((example) => {
+        const canApprove = canManageAgentQuality && example.review_status === "pending";
+        const canReject = canManageAgentQuality && (example.forgettable || ["pending", "approved"].includes(example.review_status));
+        const scenarios = (example.scenarios || []).map((scenario) => `<span class="quality-example-scenario">${escapeHtml(scenario)}</span>`).join("");
+        return `<article class="quality-example">
+          <div class="quality-example-copy">
+            <div class="quality-example-title">${escapeHtml(example.command || "Recorded storage action")}</div>
+            <div class="quality-example-meta"><span class="quality-example-kind">${escapeHtml(example.kind || "example")}</span><span>${escapeHtml(example.review_status || "pending")}</span>${scenarios}<span>${escapeHtml(summarizeAgentQualityAction(example))}</span></div>
+          </div>
+          <div class="quality-actions">
+            ${canManageAgentQuality && example.promotable ? `<button type="button" data-quality-promote="${escapeHtml(example.id)}">Promote</button>` : ""}
+            ${canApprove ? `<button class="secondary" type="button" data-quality-approve="${escapeHtml(example.id)}">Approve</button>` : ""}
+            ${canReject ? `<button class="danger" type="button" data-quality-reject="${escapeHtml(example.id)}" data-quality-forget="${example.forgettable ? "true" : "false"}">${example.forgettable ? "Forget rule" : "Reject"}</button>` : ""}
+          </div>
+        </article>`;
+      }).join("");
+      list.querySelectorAll("[data-quality-promote]").forEach((button) => button.onclick = () => updateAgentQualityExample(button.dataset.qualityPromote, "promote"));
+      list.querySelectorAll("[data-quality-approve]").forEach((button) => button.onclick = () => updateAgentQualityExample(button.dataset.qualityApprove, "approve"));
+      list.querySelectorAll("[data-quality-reject]").forEach((button) => button.onclick = () => rejectAgentQualityExample(button.dataset.qualityReject, button.dataset.qualityForget === "true"));
+    }
+    function renderAgentQualityCoverage(replay) {
+      const scenarios = ["putaway", "rules", "correction", "photo", "organization"];
+      const coverage = replay.scenario_coverage || {};
+      const covered = scenarios.filter((scenario) => Number(coverage[scenario] || 0) > 0);
+      const missing = scenarios.filter((scenario) => !covered.includes(scenario));
+      const ready = Number(replay.evidence_count || 0);
+      const reviewed = Number(replay.eligible_count || 0);
+      const skipped = Number(replay.skipped || 0);
+      const parts = [`${ready} ready of ${reviewed} reviewed`, covered.length ? `covered: ${covered.join(", ")}` : "no workflows covered"];
+      if (missing.length) parts.push(`missing: ${missing.join(", ")}`);
+      if (skipped) parts.push(`${skipped} need context repair`);
+      byId("agentQualityCoverage").textContent = `Approved replay · ${parts.join(" · ")}`;
+    }
+    async function loadAgentQuality() {
+      const refresh = byId("agentQualityRefresh");
+      refresh.disabled = true;
+      byId("agentQualitySection").setAttribute("aria-busy", "true");
+      byId("agentQualityStatusText").textContent = "Checking learning evidence.";
+      try {
+        const params = new URLSearchParams({limit:"20"});
+        const status = byId("agentQualityStatus").value;
+        const kind = byId("agentQualityKind").value;
+        const scenario = byId("agentQualityScenario").value;
+        if (status) params.set("review_status", status);
+        if (kind) params.set("kind", kind);
+        if (scenario) params.set("scenario", scenario);
+        if (byId("agentQualityRejected").checked) params.set("include_rejected", "true");
+        const [examples, summary, replay] = await Promise.all([
+          api(`/assistant/learning/examples?${params.toString()}`),
+          api("/assistant/learning/summary"),
+          api("/assistant/evals/replay", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({limit:25, minimum_cases:1, run_model:false})})
+        ]);
+        renderAgentQualityExamples(examples.examples || []);
+        renderAgentQualityCoverage(replay);
+        const counts = summary.review_counts || {};
+        byId("agentQualitySummary").textContent = `Pending ${counts.pending || 0} · approved ${counts.approved || 0} · promoted ${counts.promoted || 0} · rejected ${counts.rejected || 0}. Dry coverage checks make no model calls.`;
+        byId("agentQualityApproveVisible").hidden = !canManageAgentQuality;
+        byId("agentQualityApproveVisible").disabled = !visibleAgentQualityIds.length;
+        byId("agentQualityStatusText").textContent = `${examples.count || 0} matching example${examples.count === 1 ? "" : "s"}. Only trusted approved or promoted examples become release evidence.`;
+      } catch (error) {
+        byId("agentQualityList").innerHTML = `<div class="quality-state" role="alert">Agent quality did not load. ${escapeHtml(error.message || "Check the connection and try again.")}</div>`;
+        byId("agentQualityStatusText").textContent = "Agent quality unavailable.";
+      } finally {
+        byId("agentQualitySection").removeAttribute("aria-busy");
+        refresh.disabled = false;
+      }
+    }
+    async function loadDiagnostics({force = false} = {}) {
+      if (diagnosticsLoading) return diagnosticsLoading;
+      if (diagnosticsLoaded && !force) return;
+      diagnosticsLoading = (async () => {
+        const [readinessData, buildData, healthData, usageData, storageUsageData, voiceUsageData] = await Promise.all([
+          api("/product/readiness").catch(() => null),
+          api("/build").catch(() => null),
+          api("/health").catch(() => null),
+          api("/usage/agent").catch(() => null),
+          api("/usage/storage").catch(() => null),
+          api("/voice/status").catch(() => null),
+          loadAgentQuality(),
+        ]);
+        renderProductReadiness(readinessData);
+        renderRuntime(buildData, healthData);
+        renderUsage(usageData);
+        renderStorageUsage(storageUsageData);
+        renderVoiceUsage(voiceUsageData);
+        diagnosticsLoaded = true;
+        syncAccountNavigation();
+      })().finally(() => {
+        diagnosticsLoading = null;
+      });
+      return diagnosticsLoading;
+    }
+    async function updateAgentQualityExample(exampleId, action) {
+      if (!exampleId || !["approve", "promote"].includes(action)) return;
+      byId("agentQualityStatusText").textContent = action === "approve" ? "Approving example." : "Promoting learning rule.";
+      try {
+        await api(`/assistant/learning/examples/${encodeURIComponent(exampleId)}/${action}`, {method:"POST"});
+        await loadAgentQuality();
+      } catch (error) {
+        byId("agentQualityStatusText").textContent = error.message;
+      }
+    }
+    async function approveVisibleAgentQualityExamples() {
+      if (!visibleAgentQualityIds.length) return;
+      byId("agentQualityStatusText").textContent = "Approving visible pending examples.";
+      try {
+        await api("/assistant/learning/examples/bulk-approve", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({example_ids:visibleAgentQualityIds})});
+        await loadAgentQuality();
+      } catch (error) {
+        byId("agentQualityStatusText").textContent = error.message;
+      }
+    }
+    async function rejectAgentQualityExample(exampleId, forgetsRule) {
+      if (!exampleId) return;
+      if (forgetsRule && !confirm("Forget this learned rule? Magpie will stop applying it.")) return;
+      byId("agentQualityStatusText").textContent = forgetsRule ? "Forgetting learned rule." : "Rejecting example.";
+      try {
+        await api(`/assistant/learning/examples/${encodeURIComponent(exampleId)}`, {method:"DELETE"});
+        await loadAgentQuality();
+      } catch (error) {
+        byId("agentQualityStatusText").textContent = error.message;
+      }
+    }
+    async function loadDevices() {
+      const data = await api("/workspace/devices");
+      devicePairingAvailable = data.pairing_available !== false;
+      byId("devicesSection").hidden = false;
+      byId("deviceForm").hidden = !data.can_manage || !devicePairingAvailable;
+      if (data.can_manage && !devicePairingAvailable) byId("deviceMessage").textContent = data.pairing_message || "Device pairing is not configured.";
+      renderDevices(data.devices || [], data.can_manage);
+      return data;
+    }
+    function setDevicePairingProgress(step, state, tone = "") {
+      byId("devicePairingState").textContent = state;
+      byId("devicePairingState").className = `pairing-state${tone ? ` ${tone}` : ""}`;
+      byId("devicePairingSteps").querySelectorAll("[data-pairing-step]").forEach((row) => {
+        const index = Number(row.dataset.pairingStep);
+        row.classList.toggle("done", step > index);
+        row.classList.toggle("active", step === index);
+        row.querySelector(".pairing-step-number").textContent = step > index ? "OK" : String(index + 1);
+      });
+    }
+    function completeDevicePairing(device) {
+      if (deviceConnectionWatch) clearInterval(deviceConnectionWatch);
+      deviceConnectionWatch = null;
+      byId("devicePairingCommand").value = "";
+      byId("devicePairingCommand").hidden = true;
+      byId("devicePairingActions").hidden = true;
+      byId("devicePairingExpiry").hidden = true;
+      byId("devicePairingSuccess").hidden = false;
+      byId("devicePairingSuccessTitle").textContent = `${device.device_id} connected`;
+      byId("devicePairingSuccessCopy").textContent = device.command_ready
+        ? "Light commands are ready."
+        : "The secure connection is active; hardware capabilities are still checking in.";
+      setDevicePairingProgress(3, "Connected", "connected");
+      byId("deviceMessage").textContent = device.command_ready
+        ? `${device.device_id} connected and ready for light commands.`
+        : `${device.device_id} connected.`;
+    }
+    async function checkDeviceConnection(deviceId = activePairingDeviceId) {
+      if (!deviceId) return false;
+      const data = await loadDevices();
+      const device = (data.devices || []).find((row) => row.device_id === deviceId);
+      if (device?.connected && !device.pairing_pending) {
+        completeDevicePairing(device);
+        return true;
+      }
+      if (device?.pairing_pending) {
+        setDevicePairingProgress(1, device.connection_message || "Run the setup command on the device", "waiting");
+      } else if (device?.enrolled) {
+        setDevicePairingProgress(2, device.connection_message || "Waiting for the first heartbeat", "waiting");
+      } else {
+        setDevicePairingProgress(1, device?.connection_message || "Run the setup command on the device", "waiting");
+      }
+      return false;
+    }
+    function beginDeviceConnectionWatch(deviceId) {
+      if (deviceConnectionWatch) clearInterval(deviceConnectionWatch);
+      activePairingDeviceId = deviceId;
+      const deadline = Date.now() + 120000;
+      const check = async () => {
+        try {
+          if (await checkDeviceConnection(deviceId)) return;
+          if (Date.now() >= deadline) {
+            clearInterval(deviceConnectionWatch);
+            deviceConnectionWatch = null;
+            setDevicePairingProgress(1, "Still waiting for this device", "waiting");
+            byId("deviceMessage").textContent = `${deviceId} has not connected yet. Run the command again or check the device service and network.`;
+          }
+        } catch (_) {
+          if (Date.now() >= deadline) {
+            clearInterval(deviceConnectionWatch);
+            deviceConnectionWatch = null;
+            setDevicePairingProgress(1, "Connection check unavailable", "waiting");
+          }
+        }
+      };
+      deviceConnectionWatch = setInterval(check, 3000);
+      setTimeout(check, 500);
+    }
+    async function loadAgentConnections() {
+      const data = await api("/workspace/agent-credentials");
+      byId("agentConnectionsSection").hidden = false;
+      byId("agentConnectionForm").hidden = !data.can_manage;
+      renderAgentConnections(data.credentials || [], data.can_manage);
+      return data;
+    }
+    async function createAgentConnection(event) {
+      event.preventDefault();
+      const button = byId("createAgentConnectionButton");
+      button.disabled = true;
+      try {
+        const result = await api("/workspace/agent-credentials", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({name:byId("agentConnectionName").value})});
+        const endpoint = result.mcp_url || `${location.origin}/mcp/`;
+        byId("agentConnectionDetails").value = `URL: ${endpoint}\nAuthorization: Bearer ${result.token}`;
+        byId("agentConnectionToken").hidden = false;
+        byId("agentConnectionDetails").focus();
+        byId("agentConnectionDetails").select();
+        byId("agentConnectionName").value = "";
+        byId("agentConnectionMessage").textContent = "Agent connection created.";
+        await loadAgentConnections();
+      } catch (error) { byId("agentConnectionMessage").textContent = error.message; }
+      finally { button.disabled = false; }
+    }
+    async function revokeAgentConnection(credentialId) {
+      if (!confirm("Revoke this agent connection?")) return;
+      try {
+        await api(`/workspace/agent-credentials/${encodeURIComponent(credentialId)}`, {method:"DELETE"});
+        byId("agentConnectionToken").hidden = true;
+        byId("agentConnectionDetails").value = "";
+        byId("agentConnectionMessage").textContent = "Agent connection revoked.";
+        await loadAgentConnections();
+      } catch (error) { byId("agentConnectionMessage").textContent = error.message; }
+    }
+    function shellQuote(value) { return "'" + String(value).replaceAll("'", "'\"'\"'") + "'"; }
+    function showDevicePairing(deviceId, result) {
+      const origin = window.location.origin;
+      const scopes = Array.isArray(result.device?.credential_scopes) ? result.device.credential_scopes : [];
+      const centralUrl = (result.machine_url || window.magpieAuthConfig?.edge_url || origin).replace(/\/$/, "");
+      const pair = `.venv/bin/searchable-storage-edge --central-url ${shellQuote(centralUrl)} --device-id ${shellQuote(deviceId)} --workspace-id ${shellQuote(result.workspace_id)} --pairing-code ${shellQuote(result.pairing_code)} --pair-only`;
+      const commands = ["cd ~/searchable-storage-led"];
+      if (["commands", "screen", "voice"].every((scope) => scopes.includes(scope))) {
+        commands.push(`scripts/connect-pi5-cabinet.sh --central-url ${shellQuote(centralUrl)} --device-id ${shellQuote(deviceId)} --workspace-id ${shellQuote(result.workspace_id)} --pairing-code ${shellQuote(result.pairing_code)}`);
+        commands.push("# Local voice and kiosk stay unchanged until the central inventory is verified.");
+        commands.push(`# Then activate them with: scripts/connect-pi5-cabinet.sh --central-url ${shellQuote(centralUrl)} --device-id ${shellQuote(deviceId)} --workspace-id ${shellQuote(result.workspace_id)} --activate-central-experience`);
+      } else {
+        commands.push(pair);
+        if (scopes.includes("commands")) commands.push(`MAGPIE_CENTRAL_URL=${shellQuote(centralUrl)} MAGPIE_EDGE_DEVICE_ID=${shellQuote(deviceId)} MAGPIE_EDGE_WORKSPACE_ID=${shellQuote(result.workspace_id)} scripts/install-pi5-edge-service.sh`);
+        if (scopes.includes("voice")) commands.push(`MAGPIE_VOICE_API_URL=${shellQuote(centralUrl)} MAGPIE_EDGE_DEVICE_ID=${shellQuote(deviceId)} MAGPIE_EDGE_WORKSPACE_ID=${shellQuote(result.workspace_id)} scripts/install-pi5-voice-service.sh`);
+        if (scopes.includes("screen")) commands.push(`MAGPIE_SCREEN_API_URL=${shellQuote(centralUrl)} MAGPIE_EDGE_DEVICE_ID=${shellQuote(deviceId)} MAGPIE_EDGE_WORKSPACE_ID=${shellQuote(result.workspace_id)} scripts/install-pi5-kiosk.sh`);
+      }
+      const command = commands.join("\n");
+      byId("devicePairingTitle").textContent = `Connect ${deviceId}`;
+      byId("devicePairingCommand").value = command;
+      byId("devicePairingExpiry").textContent = `Expires ${new Date(result.expires_at * 1000).toLocaleTimeString()}`;
+      byId("devicePairingExpiry").hidden = false;
+      byId("devicePairingCommand").hidden = false;
+      byId("devicePairingActions").hidden = false;
+      byId("devicePairingSuccess").hidden = true;
+      activePairingDeviceId = deviceId;
+      setDevicePairingProgress(0, "Waiting for setup");
+      byId("devicePairing").hidden = false;
+      byId("devicePairingCommand").focus();
+      byId("devicePairingCommand").select();
+    }
+    async function enrollDevice(event) {
+      event.preventDefault();
+      const button = byId("enrollDeviceButton");
+      button.disabled = true;
+      try {
+        const profile = byId("deviceProfile").value;
+        const deviceId = deviceSlug(byId("deviceId").value);
+        if (!deviceId) throw new Error("Use at least one letter or number in the device name.");
+        const result = await api("/workspace/devices/pairing", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({device_id:deviceId, scopes:PROFILE_SCOPES[profile] || []})});
+        byId("deviceId").value = "";
+        updateDeviceEnrollmentPreview();
+        showDevicePairing(result.device.device_id, result);
+        byId("deviceMessage").textContent = "Pairing ready.";
+        await loadDevices();
+        beginDeviceConnectionWatch(result.device.device_id);
+      } catch (error) { byId("deviceMessage").textContent = error.message; }
+      finally { button.disabled = false; }
+    }
+    async function rotateDevice(deviceId) {
+      try {
+        const result = await api(`/workspace/devices/${encodeURIComponent(deviceId)}/pairing`, {method:"POST"});
+        showDevicePairing(deviceId, result);
+        byId("deviceMessage").textContent = "Replacement pairing ready. The current connection stays active until setup completes.";
+        await loadDevices();
+        beginDeviceConnectionWatch(deviceId);
+      } catch (error) { byId("deviceMessage").textContent = error.message; }
+    }
+    async function revokeDevice(deviceId) {
+      if (!confirm(`Revoke the managed token for ${deviceId}?`)) return;
+      try {
+        const result = await api(`/workspace/devices/${encodeURIComponent(deviceId)}`, {method:"DELETE"});
+        byId("devicePairing").hidden = true;
+        activePairingDeviceId = "";
+        byId("deviceMessage").textContent = result.warning || "Device token revoked.";
+        await loadDevices();
+      } catch (error) { byId("deviceMessage").textContent = error.message; }
+    }
+    function setBackupMessage(text, error = false) {
+      byId("backupMessage").textContent = text;
+      byId("backupMessage").className = `message${error ? " error" : ""}`;
+    }
+    async function previewBackup(event) {
+      const file = event.target.files?.[0];
+      backupSnapshot = null;
+      byId("backupPreview").hidden = true;
+      if (!file) return;
+      if (file.size > 25 * 1024 * 1024) {
+        setBackupMessage("Backup files must be 25 MB or smaller.", true);
+        return;
+      }
+      setBackupMessage("Checking backup");
+      try {
+        const snapshot = JSON.parse(await file.text());
+        const preview = await api("/import/inventory.json", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({snapshot, dry_run:true})});
+        backupSnapshot = snapshot;
+        byId("backupSummary").textContent = `${file.name}: ${preview.locations || 0} locations, ${preview.inventory || 0} inventory entries, ${preview.photos || 0} photos, ${preview.placement_rules || 0} placement rules, and ${preview.size_rules || 0} size rules.`;
+        byId("backupPreview").hidden = false;
+        byId("restoreBackup").hidden = !canRestoreBackup;
+        setBackupMessage("Backup is valid. Review the counts before restoring.");
+      } catch (error) {
+        setBackupMessage(error instanceof SyntaxError ? "This file is not valid JSON." : error.message, true);
+      }
+    }
+    async function restoreBackup() {
+      if (!backupSnapshot || !canRestoreBackup) return;
+      const button = byId("restoreBackup");
+      button.disabled = true;
+      setBackupMessage("Restoring backup");
+      try {
+        const result = await api("/import/inventory.json", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({snapshot:backupSnapshot, dry_run:false})});
+        backupSnapshot = null;
+        byId("backupFile").value = "";
+        byId("backupPreview").hidden = true;
+        setBackupMessage(`Restored ${result.locations || 0} locations, ${result.inventory || 0} inventory entries, and ${result.photos || 0} photos.`);
+      } catch (error) { setBackupMessage(error.message, true); }
+      finally { button.disabled = false; }
+    }
+    async function previewCsv(event) {
+      const file = event.target.files?.[0];
+      csvImportText = "";
+      csvImportDefaultLocationId = "";
+      byId("csvPreview").hidden = true;
+      byId("csvDefaultLocationLabel").hidden = true;
+      byId("csvDefaultLocation").innerHTML = "";
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        setBackupMessage("CSV files must be 5 MB or smaller.", true);
+        return;
+      }
+      setBackupMessage("Checking inventory CSV");
+      try {
+        const csvText = await file.text();
+        const preview = await api("/import/inventory.csv", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({csv_text:csvText, dry_run:true})});
+        csvImportText = csvText;
+        const rowCount = preview.rows?.length || 0;
+        const missingLocations = preview.missing_locations || [];
+        const createMissingLocations = missingLocations.length > 0;
+        const placeSummary = createMissingLocations
+          ? ` Magpie will create ${missingLocations.length} missing storage place${missingLocations.length === 1 ? "" : "s"}: ${missingLocations.slice(0, 4).map((location) => location.path).join(", ")}${missingLocations.length > 4 ? ", and more" : ""}.`
+          : "";
+        const baseSummary = `${file.name}: ${rowCount} inventory row${rowCount === 1 ? "" : "s"} ready to import.${placeSummary}`;
+        if (preview.requires_default_location) {
+          const data = await api("/locations");
+          const locations = data.locations || [];
+          const locationsById = new Map(locations.map((location) => [location.id, location]));
+          const locationPath = (location) => {
+            const path = [];
+            const seen = new Set();
+            let current = location;
+            while (current && !seen.has(current.id)) {
+              path.unshift(current);
+              seen.add(current.id);
+              current = current.parent_id ? locationsById.get(current.parent_id) : null;
+            }
+            return MagpieLocationDisplay.pathText(path, locations, " › ");
+          };
+          const destinations = locations
+            .filter((location) => location.active && location.accepts_items)
+            .map((location) => ({
+              ...location,
+              path:locationPath(location) || location.label || location.id,
+            }))
+            .sort((left, right) => left.path.localeCompare(right.path, undefined, {numeric:true, sensitivity:"base"}));
+          if (!destinations.length) throw new Error("Create a storage destination before importing rows without a place.");
+          const select = byId("csvDefaultLocation");
+          select.innerHTML = destinations.map((location) => `<option value="${escapeHtml(location.id)}">${escapeHtml(location.path)}</option>`).join("");
+          byId("csvDefaultLocationLabel").hidden = false;
+          const useSelectedDestination = () => {
+            csvImportDefaultLocationId = select.value;
+            const missingCount = preview.missing_location_rows?.length || 0;
+            const path = destinations.find((location) => location.id === select.value)?.path || select.value;
+            byId("csvSummary").textContent = `${baseSummary} ${missingCount} row${missingCount === 1 ? "" : "s"} without a place will go to ${path}.`;
+          };
+          select.onchange = useSelectedDestination;
+          useSelectedDestination();
+        } else {
+          byId("csvSummary").textContent = baseSummary;
+        }
+        byId("csvPreview").dataset.createMissingLocations = createMissingLocations ? "true" : "false";
+        byId("csvPreview").hidden = false;
+        setBackupMessage("Inventory CSV is valid. Review the count before importing.");
+      } catch (error) {
+        setBackupMessage(error.message, true);
+      }
+    }
+    async function importCsv() {
+      if (!csvImportText || !canRestoreBackup) return;
+      const button = byId("importCsv");
+      button.disabled = true;
+      setBackupMessage("Importing inventory");
+      try {
+        const body = {csv_text:csvImportText, create_missing_locations:byId("csvPreview").dataset.createMissingLocations === "true", dry_run:false};
+        if (csvImportDefaultLocationId) body.default_location_id = csvImportDefaultLocationId;
+        const result = await api("/import/inventory.csv", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)});
+        csvImportText = "";
+        csvImportDefaultLocationId = "";
+        byId("csvFile").value = "";
+        byId("csvPreview").hidden = true;
+        byId("csvDefaultLocationLabel").hidden = true;
+        setBackupMessage(`Imported ${result.imported || 0} inventory row${result.imported === 1 ? "" : "s"}.`);
+      } catch (error) { setBackupMessage(error.message, true); }
+      finally { button.disabled = false; }
+    }
+    async function load() {
+      byId("workspaceSection").setAttribute("aria-busy", "true");
+      byId("workspaceSection").innerHTML = '<div class="product-load-state"><strong>Loading account</strong><span>Gathering workspace, people, devices, and setup.</span></div>';
+      setStatus("Loading account");
+      const bootstrap = window.magpieClientBootstrap || {};
+      const readinessRequest = api("/workspace/readiness").catch(() => null);
+      const config = window.magpieAuthConfig || await api("/auth/config");
+      if (config.mode !== "supabase") {
+        canManageAgentQuality = true;
+        byId("workspaceSection").removeAttribute("aria-busy");
+        byId("workspaceSection").innerHTML = '<div class="local-state"><h2>Local cabinet</h2><p class="copy">Account management is available on the hosted Magpie service. This device is operating as a local cabinet controller.</p></div>';
+        byId("backupFileLabel").hidden = false;
+        byId("csvFileLabel").hidden = false;
+        const readinessData = await readinessRequest;
+        if (readinessData) renderWorkspaceReadiness(readinessData);
+        syncAccountNavigation();
+        setStatus("Local device");
+        return;
+      }
+      const workspaceRequest = bootstrap.workspace && bootstrap.identity
+        ? Promise.resolve({
+            workspace: bootstrap.workspace,
+            identity: bootstrap.identity
+          })
+        : api("/workspace");
+      const [workspaceData, membersData, devicesData, agentConnectionsData, readinessData] = await Promise.all([
+        workspaceRequest,
+        api("/workspace/members"),
+        api("/workspace/devices"),
+        api("/workspace/agent-credentials"),
+        readinessRequest
+      ]);
+      identity = workspaceData.identity;
+      canManage = membersData.can_manage;
+      canManageAgentQuality = identity.role !== "viewer";
+      canRestoreBackup = identity.role !== "viewer";
+      byId("backupFileLabel").hidden = !canRestoreBackup;
+      byId("csvFileLabel").hidden = !canRestoreBackup;
+      const workspace = workspaceData.workspace;
+      workspaceName = workspace.name || "Workspace";
+      byId("workspaceSection").removeAttribute("aria-busy");
+      byId("workspaceSection").innerHTML = `<h2 id="workspaceName" class="workspace-name">${escapeHtml(workspace.name || "Workspace")}</h2><div class="workspace-meta"><span>${escapeHtml(identity.email)}</span><span>${escapeHtml(identity.role)}</span><span>${(membersData.members || []).length} people</span></div>`;
+      byId("inviteSection").hidden = !canManage;
+      if (identity.role === "admin") byId("inviteRole").querySelector('option[value="admin"]')?.remove();
+      byId("membersSection").hidden = false;
+      renderMembers(membersData.members || []);
+      byId("devicesSection").hidden = false;
+      byId("deviceForm").hidden = !devicesData.can_manage;
+      renderDevices(devicesData.devices || [], devicesData.can_manage);
+      byId("agentConnectionsSection").hidden = false;
+      byId("agentConnectionForm").hidden = !agentConnectionsData.can_manage;
+      renderAgentConnections(agentConnectionsData.credentials || [], agentConnectionsData.can_manage);
+      if (readinessData) renderWorkspaceReadiness(readinessData);
+      byId("dangerSection").hidden = !config.multi_workspace || identity.role !== "owner";
+      byId("workspaceSettingsSection").hidden = !config.multi_workspace || identity.role !== "owner";
+      byId("leaveSection").hidden = !config.multi_workspace || identity.role === "owner";
+      byId("renameWorkspaceName").value = workspaceName;
+      byId("deleteWorkspaceName").textContent = workspaceName;
+      syncAccountNavigation();
+      setStatus(`${identity.email} · ${identity.role}`);
+    }
+    function showAccountLoadError(error) {
+      const message = error?.message || "Check the connection and try again.";
+      setStatus("Account unavailable");
+      byId("workspaceSection").removeAttribute("aria-busy");
+      byId("workspaceSection").innerHTML = `<div class="product-load-state" role="alert"><strong>Account did not load</strong><span>${escapeHtml(message)}</span><button id="retryAccount" type="button">Try again</button></div>`;
+      syncAccountNavigation();
+      byId("retryAccount").onclick = () => load().catch(showAccountLoadError);
+    }
+    async function renameWorkspace(event) {
+      event.preventDefault();
+      const button = byId("renameWorkspaceButton");
+      button.disabled = true;
+      byId("renameWorkspaceMessage").className = "message";
+      byId("renameWorkspaceMessage").textContent = "Saving name";
+      try {
+        const result = await api("/workspace", {method:"PATCH", headers:{"content-type":"application/json"}, body:JSON.stringify({name:byId("renameWorkspaceName").value})});
+        workspaceName = result.workspace.name;
+        byId("workspaceName").textContent = workspaceName;
+        byId("renameWorkspaceName").value = workspaceName;
+        byId("deleteWorkspaceName").textContent = workspaceName;
+        const selected = Array.from(document.querySelectorAll(".magpie-workspace-select option")).find((option) => option.value === result.workspace.id);
+        if (selected) selected.textContent = workspaceName;
+        byId("renameWorkspaceMessage").textContent = "Workspace renamed.";
+      } catch (error) {
+        byId("renameWorkspaceMessage").textContent = error.message;
+        byId("renameWorkspaceMessage").className = "message error";
+      } finally { button.disabled = false; }
+    }
+    async function leaveWorkspace() {
+      if (!confirm(`Leave ${workspaceName}? You will lose access to its storage and history.`)) return;
+      const button = byId("leaveWorkspaceButton");
+      button.disabled = true;
+      byId("leaveWorkspaceMessage").className = "message";
+      byId("leaveWorkspaceMessage").textContent = "Leaving workspace";
+      try {
+        await api("/workspace/membership", {method:"DELETE"});
+        localStorage.removeItem("magpie.auth.workspace.v1");
+        location.href = "/mobile";
+      } catch (error) {
+        byId("leaveWorkspaceMessage").textContent = error.message;
+        byId("leaveWorkspaceMessage").className = "message error";
+        button.disabled = false;
+      }
+    }
+    async function deleteWorkspace(event) {
+      event.preventDefault();
+      const confirmation = byId("deleteWorkspaceConfirmation").value;
+      if (confirmation !== workspaceName) return;
+      const button = byId("deleteWorkspaceButton");
+      button.disabled = true;
+      byId("deleteWorkspaceMessage").className = "message";
+      byId("deleteWorkspaceMessage").textContent = "Deleting workspace";
+      try {
+        await api("/workspace", {method:"DELETE", headers:{"content-type":"application/json"}, body:JSON.stringify({confirmation})});
+        localStorage.removeItem("magpie.auth.workspace.v1");
+        location.href = "/mobile";
+      } catch (error) {
+        byId("deleteWorkspaceMessage").textContent = error.message;
+        byId("deleteWorkspaceMessage").className = "message error";
+        button.disabled = false;
+      }
+    }
+    async function invite(event) {
+      event.preventDefault();
+      const button = byId("inviteButton");
+      button.disabled = true;
+      setMessage("Sending invitation");
+      try {
+        const result = await api("/workspace/invitations", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({email:byId("inviteEmail").value, role:byId("inviteRole").value, redirect_url:`${location.origin}/account`})});
+        byId("inviteEmail").value = "";
+        setMessage(result.member.invited ? "Invitation sent." : "Existing account added.");
+        renderMembers((await api("/workspace/members")).members || []);
+      } catch (error) { setMessage(error.message, true); }
+      finally { button.disabled = false; }
+    }
+    async function updateRole(userId, role) {
+      try { await api(`/workspace/members/${encodeURIComponent(userId)}`, {method:"PATCH", headers:{"content-type":"application/json"}, body:JSON.stringify({role})}); setMessage("Role updated."); }
+      catch (error) { setMessage(error.message, true); await load(); }
+    }
+    async function removeMember(userId) {
+      if (!confirm("Remove this person from the workspace?")) return;
+      try { await api(`/workspace/members/${encodeURIComponent(userId)}`, {method:"DELETE"}); renderMembers((await api("/workspace/members")).members || []); setMessage("Member removed."); }
+      catch (error) { setMessage(error.message, true); }
+    }
+    byId("inviteForm").onsubmit = invite;
+    byId("agentConnectionForm").onsubmit = createAgentConnection;
+    byId("deviceForm").onsubmit = enrollDevice;
+    byId("deviceId").oninput = updateDeviceEnrollmentPreview;
+    byId("deviceProfile").onchange = updateDeviceEnrollmentPreview;
+    updateDeviceEnrollmentPreview();
+    byId("backupFile").onchange = previewBackup;
+    byId("restoreBackup").onclick = restoreBackup;
+    byId("csvFile").onchange = previewCsv;
+    byId("importCsv").onclick = importCsv;
+    byId("copyDevicePairing").onclick = async () => {
+      const command = byId("devicePairingCommand");
+      try {
+        await navigator.clipboard.writeText(command.value);
+        byId("deviceMessage").textContent = "Setup command copied.";
+        setDevicePairingProgress(1, "Run the command on the device", "waiting");
+      } catch (_) {
+        command.focus();
+        command.select();
+        byId("deviceMessage").textContent = "Copy is unavailable here. The setup command is selected.";
+      }
+    };
+    byId("checkDeviceConnection").onclick = async () => {
+      const button = byId("checkDeviceConnection");
+      button.disabled = true;
+      try {
+        const connected = await checkDeviceConnection();
+        if (!connected) byId("deviceMessage").textContent = "Still waiting for the device. Run the setup command there, then check again.";
+      } catch (error) {
+        byId("deviceMessage").textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
+    byId("copyAgentConnection").onclick = async () => {
+      const details = byId("agentConnectionDetails");
+      try {
+        await navigator.clipboard.writeText(details.value);
+        byId("agentConnectionMessage").textContent = "Connection details copied.";
+      } catch (_) {
+        details.focus();
+        details.select();
+        byId("agentConnectionMessage").textContent = "Copy is unavailable here. The connection details are selected.";
+      }
+    };
+    byId("agentQualityRefresh").onclick = loadAgentQuality;
+    byId("agentQualityStatus").onchange = loadAgentQuality;
+    byId("agentQualityKind").onchange = loadAgentQuality;
+    byId("agentQualityScenario").onchange = loadAgentQuality;
+    byId("agentQualityRejected").onchange = loadAgentQuality;
+    byId("agentQualityApproveVisible").onclick = approveVisibleAgentQualityExamples;
+    const diagnosticsSection = byId("diagnosticsSection");
+    async function openAccountHashTarget() {
+      const targetId = location.hash.slice(1);
+      if (!["diagnosticsSection", "usageSection", "voiceUsageSection", "agentQualitySection"].includes(targetId)) return;
+      diagnosticsSection.open = true;
+      await loadDiagnostics();
+      const target = byId(targetId);
+      if (target && !target.hidden) target.scrollIntoView({block:"start"});
+    }
+    diagnosticsSection.addEventListener("toggle", () => {
+      if (diagnosticsSection.open) loadDiagnostics();
+    });
+    document.querySelector('[data-account-target="diagnosticsSection"]').addEventListener("click", () => {
+      diagnosticsSection.open = true;
+      loadDiagnostics();
+    });
+    byId("deleteWorkspaceConfirmation").oninput = () => {
+      byId("deleteWorkspaceButton").disabled = byId("deleteWorkspaceConfirmation").value !== workspaceName;
+    };
+    byId("deleteWorkspaceForm").onsubmit = deleteWorkspace;
+    byId("renameWorkspaceForm").onsubmit = renameWorkspace;
+    byId("leaveWorkspaceButton").onclick = leaveWorkspace;
+    window.addEventListener("hashchange", openAccountHashTarget);
+    (window.magpieAuthReady || Promise.resolve()).then(async () => {
+      try {
+        await load();
+        await openAccountHashTarget();
+      } catch (error) {
+        showAccountLoadError(error);
+      }
+    });
+  </script>
+</body>
+</html>

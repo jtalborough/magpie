@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="en" data-theme="kiosk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17201e">
+  <title>Magpie Kiosk</title>
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/location-display.js"></script>
+  <script src="/confirmation.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      --state-accent: var(--accent);
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    body[data-state="listening"] { --state-accent: var(--blue); }
+    body[data-state="processing"], body[data-state="heard"] { --state-accent: var(--warning); }
+    body[data-state="setup"] { --state-accent: var(--warning); }
+    body[data-state="offline"], body[data-state="error"] { --state-accent: var(--danger); }
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: 72px minmax(0, 1fr) minmax(116px, 18vh);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 30px;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg);
+    }
+    .kiosk-brand { gap: 14px; }
+    .kiosk-product-mark {
+      width: 34px;
+      border-radius: 8px;
+      font-size: 20px;
+    }
+    .kiosk-brand h1 { margin: 0; font-size: 26px; line-height: 1; font-weight: 760; }
+    .connection { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 15px; }
+    .connection-dot { width: 10px; aspect-ratio: 1; border-radius: 50%; background: var(--danger); }
+    .connection.online .connection-dot { background: var(--accent); }
+    .connection.online { color: var(--ink); }
+    main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);
+    }
+    .focus {
+      min-width: 0;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 20px;
+      padding: 44px 6vw;
+      border-right: 1px solid var(--line);
+    }
+    .state-row { display: flex; align-items: center; gap: 18px; color: var(--state-accent); }
+    .state-icon {
+      width: 72px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 4px solid currentColor;
+      border-radius: 50%;
+      font-size: 34px;
+      font-weight: 800;
+    }
+    body[data-state="listening"] .state-icon,
+    body[data-state="heard"] .state-icon { animation: pulse 1.15s ease-in-out infinite; }
+    .state-label { font-size: 20px; font-weight: 720; text-transform: uppercase; }
+    .focus h2 {
+      max-width: 18ch;
+      margin: 0;
+      font-size: 58px;
+      line-height: 1.04;
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+    .message {
+      max-width: 42ch;
+      min-height: 1.4em;
+      color: var(--text);
+      font-size: 27px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .transcript {
+      max-width: 52ch;
+      min-height: 1.3em;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .proposal {
+      width: min(760px, 100%);
+      display: grid;
+      gap: 10px;
+      padding: 0;
+    }
+    .proposal[hidden] { display: none; }
+    .proposal-row.product-confirmation-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 13px;
+      align-items: start;
+      padding: 13px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+    }
+    .proposal-row:first-child { border-top: 0; }
+    .proposal-copy { min-width: 0; }
+    .proposal-summary { font-size: 22px; font-weight: 740; line-height: 1.25; overflow-wrap: anywhere; }
+    .proposal-path { margin-top: 4px; color: var(--muted); font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+    .proposal-more { color: var(--muted); font-size: 16px; }
+    .proposal-no-light {
+      width: 18px;
+      aspect-ratio: 1;
+      margin-top: 4px;
+      border: 2px solid var(--muted);
+      border-radius: 50%;
+    }
+    .kiosk-change-prompts.product-confirmation-change-prompts {
+      width: min(680px, 100%);
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-raised);
+    }
+    .kiosk-change-prompts button { min-height: 52px; font-size: 16px; }
+    .visual-handoff {
+      width: min(680px, 100%);
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-raised);
+    }
+    .visual-handoff[hidden] { display: none; }
+    .visual-handoff img { width: 118px; height: 118px; padding: 7px; border-radius: 5px; background: #fff; }
+    .visual-handoff-copy { min-width: 0; display: grid; gap: 7px; }
+    .visual-handoff-copy strong { font-size: clamp(20px, 2.4vw, 28px); }
+    .visual-handoff-copy span { color: var(--muted); font-size: 16px; line-height: 1.4; }
+    .kiosk-actions {
+      width: min(680px, 100%);
+      min-height: 62px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    .kiosk-actions button {
+      min-width: 142px;
+      min-height: 58px;
+      padding: 12px 20px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-raised);
+      color: var(--ink);
+      font: inherit;
+      font-size: 18px;
+      font-weight: 740;
+      cursor: pointer;
+    }
+    .kiosk-actions button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+    .kiosk-actions button.danger { border-color: color-mix(in srgb, var(--danger) 70%, var(--line)); color: var(--danger); }
+    .kiosk-actions button:disabled { cursor: wait; opacity: .52; }
+    .kiosk-actions button[hidden] { display: none; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    main.finds-empty { grid-template-columns: minmax(0, 1fr); }
+    main.finds-empty .focus { border-right: 0; }
+    .finds[hidden] { display: none; }
+    .finds {
+      min-width: 0;
+      min-height: 0;
+      padding: 34px 30px;
+      background: var(--surface-raised);
+      overflow: hidden;
+    }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+    .section-heading h2 { margin: 0; font-size: 22px; }
+    .count { color: var(--muted); font-size: 14px; }
+    .find-list {
+      max-height: calc(64vh - 90px);
+      margin-top: 18px;
+      overflow-y: auto;
+    }
+    .find-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 14px;
+      padding: 17px 0;
+      border-top: 1px solid var(--line);
+    }
+    .swatch {
+      width: 18px;
+      aspect-ratio: 1;
+      margin-top: 4px;
+      border-radius: 50%;
+      background: var(--swatch);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--swatch) 68%, transparent);
+    }
+    .find-name { font-size: 22px; font-weight: 730; overflow-wrap: anywhere; }
+    .find-kind { width:max-content; max-width:100%; margin-bottom:5px; padding:2px 7px; border:1px solid var(--line-strong); border-radius:4px; color:var(--accent); background:var(--surface); font-size:11px; font-weight:800; text-transform:uppercase; }
+    .find-path { margin-top: 5px; color: var(--muted); font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+    .find-empty { padding-top: 30px; color: var(--muted); font-size: 18px; line-height: 1.5; }
+    .activity {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 24px;
+      align-items: center;
+      padding: 20px 30px;
+      border-top: 1px solid var(--line);
+      background: var(--bg);
+    }
+    .activity-heading { display: grid; gap: 7px; }
+    .activity-heading strong { font-size: 18px; }
+    .activity-heading span { color: var(--muted); font-size: 14px; }
+    .runtime-labels { display: grid; gap: 3px; }
+    .runtime-labels span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .activity-list {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+    .activity-row { min-width: 0; padding-left: 14px; border-left: 3px solid var(--activity-color, var(--line)); }
+    .activity-row:only-child { grid-column: 1 / -1; }
+    .activity-row:first-child { border-left-color: var(--activity-color, var(--accent)); }
+    .activity-title { font-size: 16px; font-weight: 720; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-detail { display: -webkit-box; margin-top: 5px; color: var(--muted); font-size: 14px; line-height: 1.35; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    @keyframes pulse { 50% { transform: scale(1.08); box-shadow: 0 0 0 16px color-mix(in srgb, var(--state-accent) 18%, transparent); } }
+    @media (prefers-reduced-motion: reduce) { .state-icon { animation: none !important; } }
+    @media (max-height: 760px) and (min-width: 701px) {
+      .shell { grid-template-rows: 64px minmax(0, 1fr) 96px; }
+      .focus { gap: 12px; padding-top: 22px; padding-bottom: 22px; }
+      .state-row { gap: 13px; }
+      .state-icon { width: 54px; border-width: 3px; font-size: 26px; }
+      .state-label { font-size: 17px; }
+      .focus h2 { font-size: 44px; }
+      .message { font-size: 21px; }
+      .proposal { gap: 6px; }
+      .proposal-row { padding: 7px 0; }
+      .proposal-summary { font-size: 18px; }
+      .proposal-path { margin-top: 2px; font-size: 14px; }
+      .proposal-more { font-size: 13px; }
+      .transcript { font-size: 15px; }
+      .kiosk-actions { min-height: 48px; }
+      .kiosk-actions button { min-height: 48px; padding: 9px 18px; font-size: 16px; }
+      .activity { padding-top: 12px; padding-bottom: 12px; }
+      .activity-heading { gap: 3px; }
+      .activity-heading strong { font-size: 16px; }
+      .activity-heading span, .activity-detail { font-size: 12px; }
+      .activity-title { font-size: 14px; }
+    }
+    @media (max-height: 540px) and (min-width: 701px) {
+      .shell { grid-template-rows: 64px minmax(0, 1fr); }
+      .focus { gap: 7px; padding: 14px 3.5vw; }
+      .state-row { gap: 10px; }
+      .state-icon { width: 44px; font-size: 21px; }
+      .state-label { font-size: 15px; }
+      .focus h2 { font-size: 36px; }
+      .message { font-size: 18px; line-height: 1.25; }
+      .proposal-row.product-confirmation-row { padding: 5px 0; }
+      .proposal-summary { font-size: 16px; }
+      .proposal-path { font-size: 13px; }
+      .transcript { font-size: 13px; }
+      .kiosk-actions { min-height: 48px; flex-wrap: nowrap; gap: 8px; }
+      .kiosk-actions button { min-width: 0; min-height: 48px; flex: 1 1 0; padding: 7px 8px; font-size: 14px; }
+      .finds { padding: 22px 20px; }
+      .find-list { max-height: calc(100vh - 132px); }
+      body.change-options-visible .proposal,
+      body.change-options-visible .transcript { display: none; }
+      .activity { display: none; }
+    }
+    @media (max-width: 700px), (orientation: portrait) {
+      body { overflow: auto; }
+      .shell { grid-template-rows: 64px auto auto; }
+      header { padding: 0 20px; }
+      main { grid-template-columns: 1fr; }
+      .focus { min-height: 50vh; padding: 40px 28px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .focus h2 { font-size: 44px; }
+      .message { font-size: 23px; }
+      .proposal-summary { font-size: 20px; }
+      .proposal-path { font-size: 16px; }
+      .finds { min-height: 310px; padding: 28px; }
+      .find-list { max-height: none; }
+      .activity { grid-template-columns: 1fr; padding: 24px 28px; }
+      .activity-list { grid-template-columns: 1fr; gap: 12px; }
+    }
+    @media (max-width: 520px) {
+      .kiosk-brand h1 { font-size: 22px; }
+      .connection span:last-child { display: none; }
+      .focus { gap: 16px; padding: 32px 20px; }
+      .state-icon { width: 58px; font-size: 27px; }
+      .state-label { font-size: 16px; }
+      .focus h2 { font-size: 36px; }
+      .message { font-size: 20px; }
+      .transcript { font-size: 16px; }
+      .kiosk-actions button { flex: 1 1 140px; min-width: 0; }
+      .finds, .activity { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body class="product-app" data-state="starting">
+  <div class="shell">
+    <header>
+      <div class="product-brand kiosk-brand"><span class="product-mark kiosk-product-mark" aria-hidden="true">M</span><h1>Magpie</h1></div>
+      <div id="connection" class="connection"><span class="connection-dot"></span><span id="connectionText">Connecting</span></div>
+    </header>
+    <main id="kioskMain" class="finds-empty">
+      <section class="focus" aria-live="assertive" aria-atomic="true">
+        <div class="state-row"><span id="stateIcon" class="state-icon">M</span><span id="stateLabel" class="state-label">Connecting</span></div>
+        <h2 id="title">Checking voice</h2>
+        <div id="message" class="message">Waiting for the Pi voice listener.</div>
+        <div id="visualHandoff" class="visual-handoff" data-handoff-url="__MAGPIE_STORAGE_HANDOFF_URL__" hidden>
+          <img src="__MAGPIE_STORAGE_HANDOFF_QR__" alt="QR code to open Magpie Places">
+          <div class="visual-handoff-copy"><strong>Open Magpie</strong><span>Scan with your phone, then use Storage / Places.</span></div>
+        </div>
+        <div id="proposal" class="proposal product-confirmation-body" aria-label="Proposed storage changes" hidden></div>
+        <div id="kioskChangePrompts" class="kiosk-change-prompts product-confirmation-change-prompts" aria-label="Change proposal" hidden></div>
+        <div id="transcript" class="transcript"></div>
+        <div id="kioskActions" class="kiosk-actions product-confirmation-actions" aria-label="Magpie controls">
+          <button id="confirmAction" class="primary" type="button" hidden>Confirm</button>
+          <button id="changeAction" type="button" hidden>Change</button>
+          <button id="cancelAction" class="danger" type="button" hidden>Cancel</button>
+          <button id="clearAction" type="button" hidden>Clear all</button>
+          <button id="undoAction" type="button" hidden>Undo last</button>
+        </div>
+      </section>
+      <section id="findsSection" class="finds" aria-label="Active locations" hidden>
+        <div class="section-heading"><h2>Active locations</h2><span id="findCount" class="count">0 active</span></div>
+        <div id="findList" class="find-list"><div class="find-empty">No active locations.</div></div>
+      </section>
+    </main>
+    <section class="activity" aria-label="Recent activity">
+      <div class="activity-heading"><strong>Recent activity</strong><span class="runtime-labels"><span id="buildLabel">Loading service build</span><span id="voiceBuildLabel">Voice listener connecting</span></span></div>
+      <div id="activityList" class="activity-list"><div class="activity-row"><div class="activity-title">Waiting for Magpie</div><div class="activity-detail">New actions will appear here.</div></div></div>
+    </section>
+  </div>
+  <script>
+    let lastInteractionId = 0;
+    let lastVoiceUpdatedAt = -1;
+    let recentActivity = [];
+    let buildLabel = "";
+    let reloadRequested = false;
+    let running = true;
+    let activeFindCount = 0;
+    let actionBusy = false;
+    let actionOverride = null;
+    let latestVoice = {};
+    let latestStorage = {};
+    let voiceAwaitingConfirmation = false;
+    let sharedPendingConfirmation = false;
+    let sharedPendingInteractionId = 0;
+    let sharedPendingPresentation = null;
+    let sharedPendingVisible = false;
+    let changeOptionsVisible = false;
+    let undoAvailable = false;
+    let actionOverrideTimer = null;
+    let interactionsInitialized = false;
+    let voiceAcceptance = null;
+
+    const kioskParams = new URLSearchParams(window.location.search);
+    const voiceCheckMode = kioskParams.get("mode") === "voice-check";
+
+    const byId = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+    const RESULT_HOLD_SECONDS = 20;
+    const HANDOFF_HOLD_SECONDS = 60;
+    const FIND_COLOR_NAMES = new Map([
+      ["255,0,0", "Red"],
+      ["0,70,255", "Blue"],
+      ["255,150,0", "Amber"],
+      ["0,180,70", "Green"],
+      ["180,0,255", "Purple"],
+      ["0,210,255", "Cyan"],
+      ["255,40,180", "Pink"],
+    ]);
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {cache: "no-store", ...options});
+      if (!response.ok) throw new Error(await response.text() || response.statusText);
+      return response.json();
+    }
+
+    function setConnection(online, text) {
+      byId("connection").classList.toggle("online", online);
+      byId("connectionText").textContent = text;
+    }
+
+    function compactRuntimeLabel(label) {
+      const value = String(label || "").trim();
+      const match = value.match(/^(v\S+)\s+([0-9a-f]{7})/i);
+      return match ? `${match[1]} · ${match[2]}` : (value || "version unknown");
+    }
+
+    function renderProposal(presentation) {
+      const proposal = byId("proposal");
+      const rows = MagpieConfirmation.rows(presentation);
+      proposal.hidden = rows.length === 0;
+      const limit = window.innerHeight <= 760 ? 2 : 4;
+      const visibleRows = rows.slice(0, limit);
+      proposal.innerHTML = visibleRows.map((row) => {
+        const color = row.color;
+        const swatch = Array.isArray(color?.rgb)
+          ? `<span class="swatch product-confirmation-swatch" title="${escapeHtml(color.name || "Lit destination")}" style="--swatch:rgb(${color.rgb.join(",")})"></span>`
+          : '<span class="proposal-no-light product-confirmation-swatch" title="No light at this location"></span>';
+        const lightLabel = MagpieConfirmation.lightLabel(row);
+        const destination = row.destination?.label
+          ? `<div class="proposal-path product-confirmation-path">${escapeHtml(row.destination.label)} · ${escapeHtml(lightLabel)}</div>`
+          : "";
+        return `<div class="proposal-row product-confirmation-row">${swatch}<div class="proposal-copy product-confirmation-row-copy"><div class="proposal-summary">${escapeHtml(row.summary || "Storage change")}</div>${destination}</div></div>`;
+      }).join("") + (rows.length > visibleRows.length
+        ? `<div class="proposal-more">+${rows.length - visibleRows.length} more proposed change${rows.length - visibleRows.length === 1 ? "" : "s"}</div>`
+        : "");
+      renderChangeOptions(presentation);
+    }
+
+    function renderChangeOptions(presentation = sharedPendingPresentation) {
+      const container = byId("kioskChangePrompts");
+      const prompts = MagpieConfirmation.changePrompts(presentation);
+      if (!prompts.length) changeOptionsVisible = false;
+      container.hidden = !changeOptionsVisible || !prompts.length;
+      document.body.classList.toggle("change-options-visible", !container.hidden);
+      container.innerHTML = prompts.map((prompt) => `<button type="button" data-change-prompt="${escapeHtml(prompt.id)}">${escapeHtml(prompt.label)}</button>`).join("");
+      container.querySelectorAll("[data-change-prompt]").forEach((button) => {
+        button.onclick = () => performKioskRevision(button.dataset.changePrompt || "");
+      });
+    }
+
+    function renderVisualHandoff(visible) {
+      byId("visualHandoff").hidden = !visible;
+    }
+
+    function voicePresentation(voice) {
+      const liveState = voice.active ? (voice.state || "waiting") : "offline";
+      const last = voice.last_result || {};
+      const lastAge = Number(last.age_seconds);
+      const lastFresh = last.age_seconds == null
+        || (Number.isFinite(lastAge) && lastAge <= RESULT_HOLD_SECONDS);
+      const useLast = liveState === "waiting" && last.message && lastFresh;
+      const displayed = useLast ? last : voice;
+      const state = useLast ? (last.state || "done") : liveState;
+      const message = displayed.message || "";
+      const confirm = state === "done" && /say yes or no|do you want me to confirm/i.test(message);
+      const notFound = state === "done" && /^(?:no match|i could not find|could not find)/i.test(message);
+      const confirmed = state === "done" && /^(?:confirmed|saved|stored)\b/i.test(message);
+      const content = {
+        waiting: ["M", "Ready", "Magpie is ready", "Say \"Magpie\" and ask to find or put away."],
+        starting: ["M", "Starting", "Magpie is starting", message || "Connecting the voice service."],
+        offline: [
+          "!",
+          "Voice offline",
+          "Voice is not connected",
+          voice.updated_at
+            ? "The storage service is online, but the Pi voice listener stopped checking in."
+            : "The storage service is online. Waiting for the Pi voice listener to connect."
+        ],
+        listening: ["M", "Listening", "Go ahead", message || ""],
+        heard: ["OK", "Heard", "I heard you", message || "Working on your request."],
+        processing: ["...", "Working", "Working on it", message || ""],
+        done: confirm
+          ? ["?", "Confirm", "Ready to save", message]
+          : notFound
+          ? ["?", "Not found", "I could not find that", message]
+          : ["OK", confirmed ? "Saved" : "Done", confirmed ? "Saved" : "Request complete", message || "Done."],
+        error: ["!", "Check", "That did not work", message || "Please try again."]
+      }[state] || ["M", "Ready", "Magpie is ready", message || "Say \"Magpie\" and ask to find or put away."];
+      return {state, content, displayed};
+    }
+
+    function storageSetupPresentation(voice) {
+      if (latestStorage.put_away_ready !== false) return null;
+      const voiceState = voice.active ? (voice.state || "waiting") : "offline";
+      if (!["waiting", "starting", "offline"].includes(voiceState)) return null;
+      const hasPlaces = Number(latestStorage.location_count || 0) > 0;
+      return hasPlaces
+        ? {
+            label: "Setup",
+            title: "Add a destination",
+            message: "Open Storage on a phone or computer and add a bin, drawer, shelf, box, or pouch that stores items.",
+          }
+        : {
+            label: "Setup",
+            title: "Set up storage",
+            message: "Open Magpie Storage on a phone or computer and create your first storage space and destination.",
+          };
+    }
+
+    function clearActionOverride() {
+      if (actionOverrideTimer) clearTimeout(actionOverrideTimer);
+      actionOverrideTimer = null;
+      actionOverride = null;
+    }
+
+    function holdActionOverride(override) {
+      clearActionOverride();
+      actionOverride = override;
+      actionOverrideTimer = setTimeout(() => {
+        if (actionOverride !== override) return;
+        clearActionOverride();
+        renderVoice(latestVoice);
+      }, Number(override.holdSeconds || RESULT_HOLD_SECONDS) * 1000);
+    }
+
+    async function loadVoiceAcceptance() {
+      if (!voiceCheckMode) return;
+      try {
+        voiceAcceptance = await api("/voice/acceptance");
+        renderVoice(latestVoice);
+      } catch (error) {
+        voiceAcceptance = null;
+      }
+    }
+
+    function renderVoiceCheck(voice) {
+      const liveVoiceState = voice.active ? (voice.state || "waiting") : "offline";
+      if (
+        !voiceCheckMode
+        || !voiceAcceptance
+        || liveVoiceState !== "waiting"
+        || sharedPendingPresentation
+        || (voice.active_finds || []).some((entry) => (entry.matches || []).length > 0)
+      ) return false;
+      const ready = Boolean(voiceAcceptance.ready);
+      const passed = Number(voiceAcceptance.passed || 0);
+      const required = Number(voiceAcceptance.required_passes || 0);
+      document.body.dataset.state = ready ? "done" : "waiting";
+      byId("stateIcon").textContent = ready ? "OK" : String(Math.min(passed + 1, required || 1));
+      byId("stateLabel").textContent = ready ? "Passed" : "Voice check";
+      byId("title").textContent = voiceAcceptance.prompt || "Say the next Magpie test command";
+      byId("message").textContent = voiceAcceptance.instruction || "Say Magpie, then the command shown above.";
+      renderVisualHandoff(false);
+      renderProposal(null);
+      byId("transcript").textContent = ready
+        ? `${passed} of ${required} checks passed in this window.`
+        : `${passed} of ${required} passed · ${Number(voiceAcceptance.remaining || 0)} remaining`;
+      voiceAwaitingConfirmation = false;
+      sharedPendingVisible = false;
+      changeOptionsVisible = false;
+      const listener = compactRuntimeLabel(voice.runtime_version);
+      const device = voice.device_id ? ` · ${voice.device_id}` : "";
+      byId("voiceBuildLabel").textContent = `Voice ${listener}${device}${voiceCapabilityLabel(voice)}`;
+      syncActionControls();
+      renderFinds([]);
+      return true;
+    }
+
+    function renderVoice(voice) {
+      latestVoice = voice || {};
+      document.body.style.removeProperty("--state-accent");
+      if (actionOverride && Number(voice.updated_at || 0) > actionOverride.voiceUpdatedAt) clearActionOverride();
+      if (actionOverride) {
+        document.body.dataset.state = actionOverride.state;
+        byId("stateIcon").textContent = actionOverride.icon;
+        byId("stateLabel").textContent = actionOverride.label;
+        byId("title").textContent = actionOverride.title;
+        byId("message").textContent = actionOverride.message;
+        renderVisualHandoff(Boolean(actionOverride.handoff));
+        renderProposal(null);
+        byId("transcript").textContent = "";
+        voiceAwaitingConfirmation = false;
+        sharedPendingVisible = false;
+        changeOptionsVisible = false;
+        syncActionControls();
+        const listener = compactRuntimeLabel(voice.runtime_version);
+        const device = voice.device_id ? ` · ${voice.device_id}` : "";
+        byId("voiceBuildLabel").textContent = `Voice ${listener}${device}${voiceCapabilityLabel(voice)}`;
+        renderFinds(voice.active_finds || []);
+        return;
+      }
+      const liveVoiceState = voice.active ? (voice.state || "waiting") : "offline";
+      if (sharedPendingPresentation && ["waiting", "starting", "offline"].includes(liveVoiceState)) {
+        const voiceReady = liveVoiceState === "waiting";
+        sharedPendingVisible = true;
+        document.body.dataset.state = voiceReady ? "done" : liveVoiceState;
+        byId("stateIcon").textContent = voiceReady ? "?" : "!";
+        byId("stateLabel").textContent = voiceReady
+          ? "Confirm"
+          : (liveVoiceState === "starting" ? "Voice starting" : "Voice offline");
+        byId("title").textContent = voiceReady
+          ? (sharedPendingPresentation.title || "Ready to confirm")
+          : "Confirmation paused";
+        byId("message").textContent = voiceReady
+          ? (sharedPendingPresentation.voice_instruction || "Say yes to confirm or no to cancel.")
+          : (
+              liveVoiceState === "starting"
+                ? "Your request is ready. Waiting for the voice listener to finish starting."
+                : "Your request is ready. Voice confirmation will resume when the Pi listener reconnects."
+            );
+        renderVisualHandoff(false);
+        renderProposal(sharedPendingPresentation);
+        byId("transcript").textContent = `Request: ${sharedPendingPresentation.command}`;
+        const listener = compactRuntimeLabel(voice.runtime_version);
+        const device = voice.device_id ? ` · ${voice.device_id}` : "";
+        byId("voiceBuildLabel").textContent = `Voice ${listener}${device}${voiceCapabilityLabel(voice)}`;
+        syncActionControls();
+        renderFinds(voice.active_finds || []);
+        return;
+      }
+      const storageSetup = storageSetupPresentation(voice);
+      if (storageSetup) {
+        document.body.dataset.state = "setup";
+        byId("stateIcon").textContent = "1";
+        byId("stateLabel").textContent = storageSetup.label;
+        byId("title").textContent = storageSetup.title;
+        byId("message").textContent = storageSetup.message;
+        renderVisualHandoff(true);
+        renderProposal(null);
+        byId("transcript").textContent = "";
+        const listener = compactRuntimeLabel(voice.runtime_version);
+        const device = voice.device_id ? ` · ${voice.device_id}` : "";
+        byId("voiceBuildLabel").textContent = `Voice ${listener}${device}${voiceCapabilityLabel(voice)}`;
+        voiceAwaitingConfirmation = false;
+        syncActionControls();
+        renderFinds(voice.active_finds || []);
+        return;
+      }
+      if (renderVoiceCheck(voice)) return;
+      sharedPendingVisible = false;
+      const {state, content, displayed} = voicePresentation(voice || {});
+      document.body.dataset.state = state;
+      byId("stateIcon").textContent = content[0];
+      byId("stateLabel").textContent = content[1];
+      byId("title").textContent = content[2];
+      byId("message").textContent = content[3];
+      renderVisualHandoff(false);
+      renderProposal(null);
+      const heard = displayed.transcript || displayed.command || "";
+      byId("transcript").textContent = heard && !content[3].includes(heard) ? `Heard: ${heard}` : "";
+      const listener = compactRuntimeLabel(voice.runtime_version);
+      const device = voice.device_id ? ` · ${voice.device_id}` : "";
+      byId("voiceBuildLabel").textContent = `Voice ${listener}${device}${voiceCapabilityLabel(voice)}`;
+      voiceAwaitingConfirmation = state === "done" && /say yes or no|do you want me to confirm/i.test(content[3]);
+      syncActionControls();
+      renderFinds(voice.active_finds || []);
+    }
+
+    function voiceCapabilityLabel(voice) {
+      const capabilities = voice.capabilities || {};
+      const parts = [];
+      if (capabilities.cloud_audio_available === false && capabilities.local_stt_available) parts.push("local hearing");
+      else if (capabilities.cloud_audio_available === false) parts.push("hearing unavailable");
+      if (capabilities.cloud_audio_available === false && !capabilities.local_tts_available) parts.push("speech unavailable");
+      else if (capabilities.cloud_audio_available === false && capabilities.local_tts_available) parts.push("local speech");
+      return parts.length ? ` · ${parts.join(" · ")}` : "";
+    }
+
+    function syncActionControls() {
+      const awaitingConfirmation = voiceAwaitingConfirmation || (
+        sharedPendingConfirmation
+        && sharedPendingPresentation
+        && sharedPendingVisible
+      );
+      byId("confirmAction").textContent = MagpieConfirmation.actionLabel(
+        sharedPendingPresentation,
+        "confirm",
+        "Confirm"
+      );
+      byId("changeAction").textContent = MagpieConfirmation.actionLabel(
+        sharedPendingPresentation,
+        "change",
+        "Change"
+      );
+      byId("cancelAction").textContent = MagpieConfirmation.actionLabel(
+        sharedPendingPresentation,
+        "cancel",
+        "Cancel"
+      );
+      byId("confirmAction").hidden = !awaitingConfirmation;
+      const hasChangePrompts = MagpieConfirmation.changePrompts(
+        sharedPendingPresentation
+      ).length > 0;
+      byId("changeAction").hidden = !awaitingConfirmation || !hasChangePrompts;
+      byId("cancelAction").hidden = !awaitingConfirmation;
+      if (!awaitingConfirmation || !hasChangePrompts) changeOptionsVisible = false;
+      renderChangeOptions();
+      byId("clearAction").hidden = activeFindCount === 0;
+      byId("undoAction").hidden = !undoAvailable;
+      for (const button of byId("kioskActions").querySelectorAll("button")) button.disabled = actionBusy;
+    }
+
+    function pathLabel(match) {
+      const path = Array.isArray(match.path) ? match.path : [];
+      const label = MagpieLocationDisplay.pathText(path, [], " › ");
+      if (label) return label;
+      return match.lit_location || match.location_id || "";
+    }
+
+    function renderActiveFindFocus(rows) {
+      if (
+        !rows.length
+        || actionOverride
+        || sharedPendingVisible
+        || !["waiting", "offline"].includes(document.body.dataset.state)
+      ) return;
+      const first = rows[0];
+      const colorName = FIND_COLOR_NAMES.get(first.color.join(",")) || "Lit";
+      const putAway = first.kind === "put_away";
+      document.body.dataset.state = "done";
+      document.body.style.setProperty("--state-accent", `rgb(${first.color.join(",")})`);
+      byId("stateIcon").textContent = rows.length === 1 ? "1" : String(rows.length);
+      byId("stateLabel").textContent = rows.length === 1
+        ? `${first.lit ? `${colorName} ` : ""}${putAway ? "put away" : "find"}`
+        : "Active locations";
+      byId("title").textContent = rows.length === 1 ? first.name : `${rows.length} active items`;
+      byId("message").textContent = rows.length === 1
+        ? putAway
+          ? first.lit
+            ? `Put it in ${first.path || "the highlighted location"} using the ${colorName.toLowerCase()} light.`
+            : `Put it in ${first.path || "the selected storage location"}.`
+          : first.lit
+            ? `Follow the ${colorName.toLowerCase()} light to ${first.path || "the highlighted location"}.`
+            : `${first.name} is in ${first.path || "the selected storage location"}.`
+        : "Use the color key and storage paths in Active locations.";
+      byId("transcript").textContent = "";
+    }
+
+    function renderFinds(finds) {
+      const rows = [];
+      for (const entry of finds || []) {
+        const color = Array.isArray(entry.color) && entry.color.length === 3 ? entry.color : [255, 255, 255];
+        for (const match of entry.matches || []) {
+          rows.push({
+            kind: entry.kind === "put_away" ? "put_away" : "find",
+            name: match.name || entry.query || "Location",
+            path: pathLabel(match),
+            color,
+            lit: Boolean(match.lit_location)
+          });
+        }
+      }
+      activeFindCount = rows.length;
+      byId("kioskMain").classList.toggle("finds-empty", rows.length === 0);
+      byId("findsSection").hidden = rows.length === 0;
+      byId("findCount").textContent = `${rows.length} active`;
+      byId("findList").innerHTML = rows.length ? rows.map((row) => `<div class="find-row">
+        <span class="swatch" style="--swatch:rgb(${row.color.join(",")})"></span>
+        <div><div class="find-kind">${row.kind === "put_away" ? "Put away" : "Find"}</div><div class="find-name">${escapeHtml(row.name)}</div><div class="find-path">${escapeHtml(row.path)}</div></div>
+      </div>`).join("") : '<div class="find-empty">No active locations.</div>';
+      byId("clearAction").hidden = rows.length === 0;
+      renderActiveFindFocus(rows);
+    }
+
+    async function performKioskAction(action) {
+      if (actionBusy) return;
+      const definitions = {
+        confirm: {path:"/kiosk/actions/confirm", working:"Saving", done:"Saved", icon:"OK", label:"Saved"},
+        cancel: {path:"/kiosk/actions/cancel", working:"Canceling", done:"Canceled", icon:"OK", label:"Canceled"},
+        clear: {path:"/kiosk/actions/clear", working:"Clearing locations", done:"Active locations cleared", icon:"OK", label:"Clear"},
+        undo: {path:"/kiosk/actions/undo", working:"Undoing", done:"Undone", icon:"OK", label:"Undo"}
+      };
+      const definition = definitions[action];
+      actionBusy = true;
+      syncActionControls();
+      document.body.dataset.state = "processing";
+      byId("stateIcon").textContent = "...";
+      byId("stateLabel").textContent = "Working";
+      byId("title").textContent = definition.working;
+      byId("message").textContent = "";
+      try {
+        const result = await api(definition.path, {method:"POST"});
+        const succeeded = result.ok !== false;
+        holdActionOverride({
+          state: succeeded ? "done" : "error",
+          icon: succeeded ? definition.icon : "!",
+          label: succeeded ? definition.label : "Check",
+          title: succeeded ? definition.done : "Nothing changed",
+          message: result.message || (succeeded ? definition.done : "That action could not be completed."),
+          voiceUpdatedAt: lastVoiceUpdatedAt
+        });
+        if (["confirm", "cancel"].includes(action) && succeeded) {
+          voiceAwaitingConfirmation = false;
+          sharedPendingConfirmation = false;
+          sharedPendingInteractionId = 0;
+          sharedPendingPresentation = null;
+          changeOptionsVisible = false;
+        }
+        if (action === "clear" && succeeded) latestVoice = {...latestVoice, active_finds:[]};
+        renderVoice(latestVoice);
+      } catch (error) {
+        holdActionOverride({state:"error", icon:"!", label:"Check", title:"That did not work", message:error.message || "Please try again.", voiceUpdatedAt:lastVoiceUpdatedAt});
+        renderVoice(latestVoice);
+      } finally {
+        actionBusy = false;
+        syncActionControls();
+      }
+    }
+
+    function toggleKioskChangeOptions() {
+      if (actionBusy || byId("changeAction").hidden) return;
+      changeOptionsVisible = !changeOptionsVisible;
+      renderChangeOptions();
+    }
+
+    async function performKioskRevision(promptId) {
+      if (actionBusy || !promptId) return;
+      actionBusy = true;
+      changeOptionsVisible = false;
+      syncActionControls();
+      document.body.dataset.state = "processing";
+      byId("stateIcon").textContent = "...";
+      byId("stateLabel").textContent = "Working";
+      byId("title").textContent = "Updating proposal";
+      byId("message").textContent = "";
+      try {
+        const result = await api("/kiosk/actions/revise", {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({prompt_id:promptId}),
+        });
+        if (result.ok !== false && Array.isArray(result.plan) && result.plan.length) {
+          clearActionOverride();
+          sharedPendingConfirmation = true;
+          sharedPendingPresentation = {
+            command:result.original_command || "Magpie request",
+            message:result.message || "Review the updated storage plan.",
+            ...(result.confirmation || {}),
+          };
+          sharedPendingVisible = true;
+          renderVoice({...latestVoice, active:true, state:"waiting"});
+        } else {
+          holdActionOverride({
+            state:result.ok === false ? "error" : "done",
+            icon:result.ok === false ? "!" : "?",
+            label:result.ok === false ? "Check" : "Change",
+            title:result.ok === false ? "Nothing changed" : "More information needed",
+            message:result.message || "Tell Magpie what should change.",
+            voiceUpdatedAt:lastVoiceUpdatedAt,
+          });
+          renderVoice(latestVoice);
+        }
+      } catch (error) {
+        holdActionOverride({state:"error", icon:"!", label:"Check", title:"That did not work", message:error.message || "Please try again.", voiceUpdatedAt:lastVoiceUpdatedAt});
+        renderVoice(latestVoice);
+      } finally {
+        actionBusy = false;
+        syncActionControls();
+      }
+    }
+
+    function proposalActivityDetail(plan, command) {
+      const steps = Array.isArray(plan) ? plan : [];
+      if (steps.length !== 1) return `${steps.length} proposed changes`;
+      const step = steps[0] || {};
+      const args = step.arguments || {};
+      if (step.tool === "put_item") {
+        return `${args.item || "Item"} -> ${args.location_id || "destination"}`;
+      }
+      if (step.tool === "move_item") {
+        return `${args.item || `Item #${args.item_id || ""}`} -> ${args.to_location_id || "destination"}`;
+      }
+      if (step.tool === "remove_item") return `Remove ${args.item || `item #${args.item_id || ""}`}`;
+      return command;
+    }
+
+    function interactionLocationPath(interaction, locationId) {
+      if (!locationId) return "";
+      for (const item of interaction.current_items || []) {
+        const placement = (item.placements || []).find((row) => row.location_id === locationId);
+        if (placement?.path_label) return placement.path_label;
+      }
+      return "";
+    }
+
+    function findActivity(interaction, response, command) {
+      const results = Array.isArray(response.results) ? response.results : [];
+      const query = String(response.query || command || "").trim();
+      const activeFind = (response.active_finds || []).find((row) => (
+        row.kind === "find" && String(row.query || "").trim().toLowerCase() === query.toLowerCase()
+      ));
+      const color = Array.isArray(activeFind?.color) ? activeFind.color.slice(0, 3) : null;
+      if (results.length === 1) {
+        const item = results[0] || {};
+        const path = MagpieLocationDisplay.pathText(item.path || [], [], " › ");
+        return {title: response.lit ? "Found and lit" : "Found", detail: path ? `${item.name || query} in ${path}` : item.name || query, color};
+      }
+      const names = results.map((item) => item.name).filter(Boolean).slice(0, 3).join(", ");
+      const detail = results.length > 1 ? `${results.length} locations · ${names || query}` : response.message || query;
+      return {title: response.lit ? "Found and lit" : "Found", detail, color};
+    }
+
+    function activityRowStyle(row) {
+      if (!Array.isArray(row.color) || row.color.length !== 3) return "";
+      const color = row.color.map((channel) => Math.max(0, Math.min(255, Number(channel) || 0)));
+      return ` style="--activity-color:rgb(${color.join(",")})"`;
+    }
+
+    function interactionDisplay(interaction) {
+      const response = interaction.response || {};
+      const route = interaction.route || "";
+      const command = interaction.command || "Magpie action";
+      const applied = Array.isArray(response.applied) ? (response.applied[0] || {}) : {};
+      const action = response.action || response.decision?.action || "";
+      if (route.includes("/voice/confirm")) return {title: response.ok ? "Saved" : "Confirmation skipped", detail: response.message || command};
+      if (route.includes("/voice/cancel")) return {title: "Canceled", detail: response.message || command};
+      if (route.includes("/undo")) return {title: response.ok ? "Undone" : "Nothing to undo", detail: response.message || command};
+      if (action === "lights_cleared") return {title: "Finds cleared", detail: response.message || command};
+      if (route.includes("quick-put")) {
+        const item = response.item?.name || command;
+        const destination = MagpieLocationDisplay.pathText(
+          response.destination?.path || [],
+          [],
+          " › ",
+        ) || response.destination?.label || "";
+        return {
+          title: response.ok === false ? "Put-away failed" : "Stored",
+          detail: destination ? `${item} in ${destination}` : response.message || item,
+        };
+      }
+      if (["place_configuration_ui_required", "voice_scope_ui_required"].includes(action)) {
+        return {title: "Use Storage", detail: response.message || "Open Places on a phone or computer."};
+      }
+      if (route.startsWith("/locations/") || String(action).startsWith("manual_create_location")) return null;
+      if (applied.stored) {
+        const destination = interactionLocationPath(interaction, applied.location_id);
+        return {title: "Stored", detail: destination ? `${applied.stored} in ${destination}` : applied.stored};
+      }
+      if (action === "found" || route === "/assistant/find") {
+        return findActivity(interaction, response, command);
+      }
+      if ((response.plan || []).length) {
+        const destination = response.destination || {};
+        const destinationLabel = MagpieLocationDisplay.pathText(
+          destination.path || [],
+          [],
+          " › ",
+        ) || destination.label || "";
+        if (interaction.status === "expired") return {title: "Proposal expired", detail: command};
+        if (interaction.status === "superseded") return {title: "Proposal replaced", detail: command};
+        return {
+          title: interaction.status === "confirmed" ? "Stored" : "Awaiting confirmation",
+          detail: destinationLabel || proposalActivityDetail(response.plan, command)
+        };
+      }
+      if (action === "put_away") return {title: "No destination", detail: response.message || command};
+      if (response.message) return {title: response.ok === false ? "Needs attention" : "Magpie", detail: response.message};
+      return {title: "Request", detail: command};
+    }
+
+    function renderInteractions(interactions) {
+      const showFreshHandoffs = interactionsInitialized;
+      for (const interaction of interactions || []) {
+        lastInteractionId = Math.max(lastInteractionId, Number(interaction.id || 0));
+        const route = String(interaction.route || "");
+        const response = interaction.response || {};
+        const action = response.action || response.decision?.action || "";
+        const planRoute = ["/assistant/agent", "/assistant/chat", "/assistant/revise", "/mcp/propose_plan"].includes(route);
+        if (planRoute) {
+          sharedPendingConfirmation = interaction.status === "pending"
+            && interaction.confirmable !== false
+            && interaction.voice_confirmable === true
+            && Array.isArray(response.plan)
+            && response.plan.length > 0;
+          if (sharedPendingConfirmation) sharedPendingInteractionId = Number(interaction.id || 0);
+          sharedPendingPresentation = sharedPendingConfirmation ? {
+            command: response.original_command || interaction.command || "Magpie request",
+            message: response.message || "Review and confirm this storage plan.",
+            ...(response.confirmation || {})
+          } : null;
+        } else if (
+          ["/assistant/confirm", "/assistant/cancel", "/assistant/voice/confirm", "/assistant/voice/cancel"].includes(route)
+          || ["confirmed", "canceled"].includes(String(interaction.status || ""))
+        ) {
+          sharedPendingConfirmation = false;
+          sharedPendingInteractionId = 0;
+          sharedPendingPresentation = null;
+        }
+        if (
+          ["/assistant/confirm", "/assistant/voice/confirm"].includes(route)
+          && interaction.status === "confirmed"
+          && Array.isArray(response.applied)
+          && response.applied.length > 0
+        ) undoAvailable = true;
+        if (route.includes("/undo") && response.ok !== false) undoAvailable = false;
+        const display = interactionDisplay(interaction);
+        if (display) {
+          recentActivity = [{id: interaction.id, ...display}, ...recentActivity.filter((row) => row.id !== interaction.id)].slice(0, 3);
+        }
+        if (
+          showFreshHandoffs
+          && ["place_configuration_ui_required", "voice_scope_ui_required"].includes(action)
+        ) {
+          holdActionOverride({
+            state:"setup",
+            icon:"1",
+            label:"Use app",
+            title:"Open Storage on your phone",
+            message:response.message || "Use Storage, then Places, to manage storage spaces.",
+            handoff:true,
+            holdSeconds:HANDOFF_HOLD_SECONDS,
+            voiceUpdatedAt:lastVoiceUpdatedAt,
+          });
+        }
+      }
+      interactionsInitialized = true;
+      byId("activityList").innerHTML = recentActivity.length ? recentActivity.map((row) => `<div class="activity-row"${activityRowStyle(row)}>
+        <div class="activity-title">${escapeHtml(row.title)}</div>
+        <div class="activity-detail">${escapeHtml(row.detail)}</div>
+      </div>`).join("") : '<div class="activity-row"><div class="activity-title">Waiting for Magpie</div><div class="activity-detail">New actions will appear here.</div></div>';
+      renderVoice(latestVoice);
+      if (voiceCheckMode && showFreshHandoffs && (interactions || []).length) loadVoiceAcceptance();
+    }
+
+    function syncAuthoritativePending(interaction) {
+      const response = interaction?.response || {};
+      sharedPendingConfirmation = Boolean(
+        interaction
+        && interaction.status === "pending"
+        && interaction.confirmable !== false
+        && Array.isArray(response.plan)
+        && response.plan.length > 0
+      );
+      if (sharedPendingConfirmation) sharedPendingInteractionId = Number(interaction.id || 0);
+      sharedPendingPresentation = sharedPendingConfirmation ? {
+        command: response.original_command || interaction.command || "Magpie request",
+        message: response.message || "Review and confirm this storage plan.",
+        ...(response.confirmation || {})
+      } : null;
+      renderVoice(latestVoice);
+    }
+
+    function syncConfirmationState(confirmationState) {
+      const trackedId = Number(sharedPendingInteractionId || 0);
+      if (
+        !trackedId
+        || Number(confirmationState?.interaction_id || 0) !== trackedId
+      ) return;
+      const status = String(confirmationState?.status || "unknown");
+      const replacedBy = Number(confirmationState?.replaced_by_interaction_id || 0);
+      if (["pending", "confirming", "unknown"].includes(status) && !replacedBy) return;
+
+      sharedPendingConfirmation = false;
+      sharedPendingInteractionId = 0;
+      sharedPendingPresentation = null;
+      sharedPendingVisible = false;
+      changeOptionsVisible = false;
+      voiceAwaitingConfirmation = false;
+      const replaced = Boolean(replacedBy) || status === "superseded";
+      holdActionOverride({
+        state: "error",
+        icon: "!",
+        label: replaced ? "Updated" : "Expired",
+        title: replaced ? "Proposal replaced" : "Proposal expired",
+        message: replaced
+          ? "A newer Magpie request replaced that proposal. Review the current request before confirming."
+          : "That storage proposal timed out. Say Magpie and ask again to review a current plan.",
+        voiceUpdatedAt: lastVoiceUpdatedAt,
+      });
+      renderVoice(latestVoice);
+    }
+
+    async function heartbeat() {
+      try {
+        await api("/screen/heartbeat", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({
+            screen_id: "cabinet-kiosk",
+            url: window.location.href,
+            build_label: buildLabel,
+            last_seen_interaction_id: lastInteractionId,
+            status: document.visibilityState === "hidden" ? "hidden" : "active"
+          })
+        });
+      } catch (error) {
+        setConnection(false, "Central service unavailable");
+      }
+    }
+
+    async function poll() {
+      while (running) {
+        try {
+          const cycleStartedAt = Date.now();
+          const query = new URLSearchParams({
+            after_id: String(lastInteractionId),
+            confirmation_interaction_id: String(sharedPendingInteractionId || 0),
+            voice_updated_at: String(lastVoiceUpdatedAt),
+            wait_seconds: "20",
+            screen_id: "cabinet-kiosk",
+            screen_url: window.location.href,
+            build_label: buildLabel,
+            status: document.visibilityState === "hidden" ? "hidden" : "active",
+            last_seen_interaction_id: String(lastInteractionId)
+          });
+          const state = await api(`/kiosk/state?${query}`);
+          if (state.reload_required && !reloadRequested) {
+            reloadRequested = true;
+            setConnection(false, "Updating Magpie");
+            window.location.reload();
+            return;
+          }
+          const voice = state.voice || {};
+          latestStorage = state.storage || {};
+          lastVoiceUpdatedAt = Number(voice.updated_at || 0);
+          renderVoice(voice);
+          renderInteractions(state.interactions || []);
+          syncConfirmationState(state.confirmation_state || null);
+          syncAuthoritativePending(state.pending_confirmation || null);
+          setConnection(Boolean(voice.active), voice.active ? "Voice connected" : "Voice offline");
+          const elapsed = Date.now() - cycleStartedAt;
+          if (elapsed < 250) {
+            await new Promise((resolve) => setTimeout(resolve, 250 - elapsed));
+          }
+        } catch (error) {
+          setConnection(false, "Reconnecting");
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      }
+    }
+
+    async function start() {
+      try {
+        const build = await api("/build");
+        buildLabel = build.label || [build.version, String(build.commit || "").slice(0, 7)].filter(Boolean).join(" ");
+        byId("buildLabel").textContent = `Service ${compactRuntimeLabel(buildLabel)}`;
+      } catch (error) {
+        byId("buildLabel").textContent = "Magpie kiosk";
+      }
+      await loadVoiceAcceptance();
+      document.addEventListener("visibilitychange", heartbeat);
+      window.addEventListener("beforeunload", () => { running = false; });
+      byId("confirmAction").onclick = () => performKioskAction("confirm");
+      byId("changeAction").onclick = toggleKioskChangeOptions;
+      byId("cancelAction").onclick = () => performKioskAction("cancel");
+      byId("clearAction").onclick = () => performKioskAction("clear");
+      byId("undoAction").onclick = () => performKioskAction("undo");
+      poll();
+    }
+
+    start();
+  </script>
+</body>
+</html>

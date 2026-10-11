@@ -1,0 +1,72 @@
+services:
+  magpie-data-init:
+    image: ${MAGPIE_IMAGE:?MAGPIE_IMAGE must be an immutable image reference}
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        chown -R 10001:10001 /data
+        install -o 10001 -g 10001 -m 0400 /source/runtime.json /runtime/runtime.json.next
+        mv -f /runtime/runtime.json.next /runtime/runtime.json
+    restart: "no"
+    volumes:
+      - magpie-data:/data
+      - magpie-runtime:/runtime
+      - ${MAGPIE_CONFIG_FILE:-./config/container-hosted.json}:/source/runtime.json:ro
+
+  magpie:
+    image: ${MAGPIE_IMAGE:?MAGPIE_IMAGE must be an immutable image reference}
+    restart: unless-stopped
+    depends_on:
+      magpie-data-init:
+        condition: service_completed_successfully
+    init: true
+    ports:
+      - "127.0.0.1:${MAGPIE_HOST_PORT:-8766}:8765"
+    environment:
+      LED_CONFIG: /runtime/runtime.json
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_AI_API_TOKEN: ${CLOUDFLARE_AI_API_TOKEN:-}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?required}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?required}
+      MAGPIE_EDGE_TOKENS_JSON: ${MAGPIE_EDGE_TOKENS_JSON:-}
+    volumes:
+      - magpie-data:/data
+      - magpie-runtime:/runtime:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/ready', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  magpie-preflight:
+    image: ${MAGPIE_IMAGE:?MAGPIE_IMAGE must be an immutable image reference}
+    profiles: ["verify"]
+    environment:
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?required}
+    volumes:
+      - magpie-runtime:/runtime:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["searchable-storage-supabase-check"]
+    command: ["--config", "/runtime/runtime.json"]
+
+volumes:
+  magpie-data:
+  magpie-runtime:

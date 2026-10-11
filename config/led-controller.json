@@ -1,0 +1,40 @@
+{
+  "pixel_count": 182,
+  "gpio_pin": 13,
+  "backend": "wled",
+  "wled_url": "http://192.0.2.37",
+  "wled_start": 0,
+  "color_order": "RGB",
+  "default_brightness": 0.4,
+  "bind_host": "0.0.0.0",
+  "bind_port": 8765,
+  "layout_path": "config/storage-layout.json",
+  "database_path": "state/inventory.db",
+  "assistant_backend": "openai",
+  "agent_max_steps": 4,
+  "openai_model": "gpt-5.6-luna",
+  "edge": {
+    "mode": "local",
+    "target_device_id": "main-cabinet"
+  },
+  "zebra": {
+    "host": "192.0.2.108",
+    "port": 9100,
+    "timeout_seconds": 3,
+    "width_dots": 1200,
+    "length_dots": 1194,
+    "dpi": 300,
+    "base_url": "https://magpie.example.com"
+  },
+  "llm": {
+    "provider": "openrouter",
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": "google/gemini-3.1-flash-lite",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "fallback": {
+      "base_url": "http://localhost:11434/v1",
+      "model": "qwen2.5:3b-instruct-q4_K_M",
+      "api_key_env": ""
+    }
+  }
+}

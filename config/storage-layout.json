@@ -1,0 +1,33 @@
+{
+  "name": "main-cabinet",
+  "columns": 14,
+  "origin": "bottom-right",
+  "serpentine": true,
+  "led_remap": {
+    "mode": "sections",
+    "sections": [
+      {"source_start": 0, "length": 98, "target_start": 84},
+      {"source_start": 98, "length": 14, "target_start": 0, "reverse": true},
+      {"source_start": 112, "length": 14, "target_start": 14, "reverse": true},
+      {"source_start": 126, "length": 14, "target_start": 28, "reverse": true},
+      {"source_start": 140, "length": 14, "target_start": 42, "reverse": true},
+      {"source_start": 154, "length": 14, "target_start": 56, "reverse": true},
+      {"source_start": 168, "length": 14, "target_start": 70, "reverse": true}
+    ]
+  },
+  "rows_bottom_to_top": [
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "small", "bin_count": 14, "spans": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    {"size": "medium", "bin_count": 4, "spans": [4, 3, 4, 3]},
+    {"size": "medium", "bin_count": 4, "spans": [4, 3, 4, 3]},
+    {"size": "medium", "bin_count": 4, "spans": [4, 3, 4, 3]},
+    {"size": "large", "bin_count": 2, "spans": [7, 7]},
+    {"size": "large", "bin_count": 2, "spans": [7, 7]}
+  ]
+}

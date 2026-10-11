@@ -1,0 +1,2843 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Magpie</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/product-shell.js" defer></script>
+  <script src="/auth.js"></script>
+  <script src="/location-display.js"></script>
+  <script src="/confirmation.js"></script>
+  <script src="/jsqr.min.js"></script>
+  <script src="/photo-utils.js"></script>
+  <style>
+    * { box-sizing:border-box; }
+    html {
+      background:var(--bg);
+      scroll-padding-bottom:calc(var(--dock-space) + 12px);
+    }
+    body {
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--text);
+      letter-spacing:0;
+    }
+    button, textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.5; }
+    [hidden] { display:none !important; }
+    header {
+      position:sticky;
+      z-index:20;
+      top:0;
+      min-height:60px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+      border-bottom:1px solid var(--line);
+      background:color-mix(in srgb,var(--surface) 96%,transparent);
+    }
+    .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+    h1 { margin:0; line-height:1; }
+    .connection { margin-left:auto; display:flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; white-space:nowrap; }
+    .connection-dot { width:8px; aspect-ratio:1; border-radius:50%; background:var(--danger); }
+    .connection.online .connection-dot { background:var(--positive); }
+    .install-button { min-height:36px; padding:6px 10px; font-size:12px; white-space:nowrap; }
+    .new-conversation { width:36px; min-width:36px; height:36px; padding:0; font-size:20px; }
+    header .magpie-workspace-control { margin-left:0; }
+    header .magpie-auth-signout { display:none; }
+    main {
+      width:min(720px,100%);
+      min-height:calc(100vh - 60px);
+      margin:0 auto;
+      padding:18px 16px calc(var(--dock-space) + 12px);
+    }
+    .assistant-page-heading { display:none; }
+    .assistant-active-finds {
+      max-height:min(34vh,240px);
+      margin-bottom:6px;
+      overflow:auto;
+      box-shadow:var(--shadow);
+    }
+    .reviews {
+      margin-bottom:18px;
+      --notice-color:var(--warning);
+    }
+    .reviews .section-head { border-bottom:1px solid var(--line); }
+    .reviews.collapsed .section-head { border-bottom:0; }
+    .review-heading { display:flex; align-items:baseline; gap:7px; min-width:0; }
+    .review-count { color:var(--muted); font-size:11px; white-space:nowrap; }
+    .review-list { display:grid; gap:0; }
+    .review-card { display:grid; grid-template-columns:64px minmax(0,1fr); gap:10px; padding:12px; border-bottom:1px solid var(--line); background:var(--surface); }
+    .review-card.place-check { grid-template-columns:minmax(0,1fr); }
+    .review-card:last-child { border-bottom:0; }
+    .review-photo { width:64px; height:64px; object-fit:cover; border-radius:6px; background:var(--bg); }
+    .review-photo.empty { display:grid; place-items:center; color:var(--muted); font-size:10px; font-weight:700; }
+    .review-name { font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+    .review-kind { margin-bottom:3px; color:var(--warning); font-size:10px; font-weight:800; text-transform:uppercase; }
+    .review-meta { margin-top:2px; color:var(--muted); font-size:11px; line-height:1.35; overflow-wrap:anywhere; }
+    .review-actions { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+    .review-actions button { min-height:44px; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:var(--accent-ink); font-size:12px; font-weight:750; }
+    .review-actions button.secondary { background:var(--surface); color:var(--accent); }
+    .review-actions .receipt-action { width:100%; }
+    .review-actions .receipt-action.primary { background:var(--accent); color:var(--accent-ink); }
+    .offline-queue {
+      margin-bottom:18px;
+      --notice-color:var(--blue);
+    }
+    .offline-queue .section-head { align-items:flex-start; }
+    .offline-heading { display:grid; gap:2px; min-width:0; }
+    .offline-heading span { color:var(--muted); font-size:11px; line-height:1.35; }
+    .offline-actions { display:flex; gap:4px; }
+    .offline-list { display:grid; border-top:1px solid var(--line); }
+    .offline-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface); }
+    .offline-row:last-child { border-bottom:0; }
+    .offline-command { font-size:12px; font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+    .offline-meta { margin-top:2px; color:var(--muted); font-size:10px; }
+    .offline-row button { min-height:44px; padding:6px 9px; border:1px solid var(--accent); border-radius:6px; background:var(--surface); color:var(--accent); font-size:11px; font-weight:750; }
+    .section-head { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; }
+    .section-head strong { font-size:13px; }
+    .clear-button { border:0; background:transparent; color:var(--accent); padding:8px; font-size:12px; font-weight:700; }
+    .swatch { width:14px; aspect-ratio:1; margin-top:3px; border-radius:50%; background:var(--swatch); box-shadow:0 0 12px color-mix(in srgb,var(--swatch) 60%,transparent); }
+    .feed { display:grid; gap:12px; }
+    .welcome { display:grid; gap:18px; width:min(620px,100%); padding:24px 2px; }
+    .welcome-copy { display:grid; gap:6px; }
+    .welcome-copy span { color:var(--accent-strong); font-size:11px; font-weight:800; text-transform:uppercase; }
+    .welcome h2 { max-width:18ch; margin:0; font-size:26px; line-height:1.15; }
+    .welcome-launchers { display:grid; border-top:1px solid var(--line); }
+    .welcome-launcher {
+      min-height:58px;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      place-items:center stretch;
+      gap:12px;
+      padding:10px 2px;
+      border:0;
+      border-bottom:1px solid var(--line);
+      border-radius:0;
+      background:transparent;
+      color:var(--text);
+      text-align:left;
+    }
+    .welcome-launcher:hover,
+    .welcome-launcher:focus-visible { background:var(--surface-hover); color:var(--accent-strong); }
+    .welcome-launcher-copy { min-width:0; display:flex; align-items:baseline; justify-content:space-between; gap:18px; }
+    .welcome-launcher-copy strong { color:var(--text); font-size:14px; }
+    .welcome-launcher-copy span { color:var(--muted); font-size:12px; }
+    .welcome-launcher::after { content:"\2192"; color:var(--accent); font-size:20px; }
+    .welcome-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+    .welcome-actions button, .welcome-actions a { min-height:44px; display:inline-flex; align-items:center; justify-content:center; padding:9px 14px; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:var(--accent-ink); text-decoration:none; font-size:14px; font-weight:750; }
+    .welcome-actions a { background:var(--surface); color:var(--accent); }
+    .welcome-actions a.primary { background:var(--accent); color:var(--accent-ink); }
+    .message { max-width:88%; padding:11px 13px; border-radius:8px; line-height:1.42; overflow-wrap:anywhere; }
+    .message.user { justify-self:end; background:var(--accent); color:var(--accent-ink); }
+    .message.agent { justify-self:start; border:1px solid var(--line); background:var(--surface); }
+    .message.system { max-width:100%; justify-self:stretch; border-left:3px solid var(--warning); background:var(--warning-soft); color:var(--warning); }
+    .message strong { display:block; margin-bottom:3px; }
+    .message-meta { margin-top:6px; color:var(--muted); font-size:12px; }
+    .message.user .message-meta { color:color-mix(in srgb,var(--accent-ink) 78%,var(--accent)); }
+    .location-choices { display:grid; gap:7px; margin-top:10px; }
+    .location-choice { min-height:44px; padding:8px 10px; border:1px solid var(--accent); border-radius:6px; background:var(--surface); color:var(--accent); text-align:left; font-size:12px; font-weight:750; }
+    .result-list, .plan-list { display:grid; gap:8px; margin:10px 0 0; padding:0; list-style:none; }
+    .result-row, .plan-row { display:grid; grid-template-columns:14px minmax(0,1fr); gap:9px; align-items:start; padding-top:8px; border-top:1px solid var(--line); }
+    .plan-row-copy { display:grid; gap:2px; min-width:0; }
+    .plan-path { color:var(--muted); font-size:12px; line-height:1.35; overflow-wrap:anywhere; }
+    .evidence-card { border:1px solid var(--line); border-radius:8px; background:var(--surface); overflow:hidden; }
+    .evidence-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:42px; padding:9px 12px; border-bottom:1px solid var(--line); }
+    .evidence-head strong { font-size:13px; }
+    .evidence-head span { color:var(--muted); font-size:11px; }
+    .evidence-list { display:grid; margin:0; padding:0; list-style:none; }
+    .evidence-row { display:grid; gap:3px; padding:10px 12px; border-bottom:1px solid var(--line); }
+    .evidence-row:last-child { border-bottom:0; }
+    .evidence-row strong { font-size:13px; overflow-wrap:anywhere; }
+    .evidence-meta { color:var(--muted); font-size:11px; line-height:1.35; overflow-wrap:anywhere; }
+    .evidence-actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:5px; }
+    .evidence-actions button { min-height:44px; padding:5px 10px; border:1px solid var(--accent); border-radius:6px; background:var(--surface); color:var(--accent); font-size:11px; font-weight:750; }
+    .evidence-actions button.danger { border-color:var(--danger); color:var(--danger); }
+    .evidence-link { min-height:44px; display:grid; place-items:center; margin:10px 12px; border:1px solid var(--accent); border-radius:6px; color:var(--accent); text-decoration:none; font-size:12px; font-weight:750; }
+    .plan-card {
+      border:1px solid color-mix(in srgb,var(--accent) 46%,var(--line));
+      border-radius:8px;
+      background:var(--surface);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .plan-body { padding:14px; }
+    .plan-title { font-size:15px; font-weight:800; }
+    .plan-copy { margin-top:4px; color:var(--muted); font-size:13px; line-height:1.4; }
+    .plan-evidence { display:grid; gap:8px; margin-top:12px; padding-top:11px; border-top:1px solid var(--line); }
+    .plan-evidence-copy { display:grid; gap:2px; }
+    .plan-evidence-copy strong { font-size:13px; }
+    .plan-evidence-copy span { color:var(--muted); font-size:12px; line-height:1.35; }
+    .plan-evidence-photos { display:flex; align-items:center; gap:7px; overflow-x:auto; }
+    .plan-evidence-photo { width:56px; min-width:56px; height:56px; object-fit:cover; border:1px solid var(--line); border-radius:6px; background:var(--surface-soft); }
+    .plan-evidence-more { min-width:44px; min-height:44px; display:grid; place-items:center; color:var(--muted); font-size:12px; font-weight:750; }
+    .plan-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
+    .plan-actions button { min-height:44px; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:var(--accent-ink); font-weight:750; }
+    .plan-actions button.secondary { background:var(--surface); color:var(--accent); }
+    .plan-destination-picker { display:grid; gap:9px; margin:0 14px 12px; padding:12px; border:1px solid var(--line); border-radius:6px; background:var(--surface-subtle); }
+    .plan-destination-picker-head { display:grid; gap:3px; }
+    .plan-destination-picker-head strong { font-size:13px; }
+    .plan-destination-picker-head span { color:var(--muted); font-size:11px; line-height:1.4; }
+    .plan-destination-picker select, .plan-destination-picker input { width:100%; min-height:44px; }
+    .plan-destination-results { display:grid; gap:5px; max-height:240px; overflow-y:auto; }
+    .plan-destination-row { width:100%; min-width:0; min-height:44px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:8px 9px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--text); text-align:left; }
+    .plan-destination-row strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .plan-destination-row span, .plan-destination-summary { color:var(--muted); font-size:11px; }
+    .plan-destination-actions { display:flex; justify-content:flex-end; }
+    .receipt-status { margin-top:7px; color:var(--muted); font-size:12px; }
+    .receipt-status.warning { color:var(--warning); }
+    .receipt-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
+    .receipt-action { min-height:44px; display:inline-grid; place-items:center; margin:0; padding:5px 12px; border:1px solid var(--accent); border-radius:6px; background:var(--surface); color:var(--accent); text-decoration:none; font-size:12px; font-weight:750; }
+    .composer-shell {
+      position:fixed;
+      z-index:30;
+      left:0;
+      right:0;
+      bottom:58px;
+      padding:6px max(10px,calc((100vw - 720px)/2 + 10px));
+      border-top:1px solid var(--line);
+      background:color-mix(in srgb,var(--bg) 97%,transparent);
+    }
+    .composer {
+      display:grid;
+      gap:6px;
+      padding:8px;
+      border:1px solid var(--line-strong);
+      border-radius:8px;
+      background:var(--surface);
+      box-shadow:var(--shadow);
+    }
+    .location-context { display:flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px; border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line)); border-radius:6px; background:var(--surface-soft); color:var(--accent-strong); font-size:12px; }
+    .location-context span { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .location-context button { width:44px; min-width:44px; min-height:44px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--accent); font-size:18px; }
+    textarea { width:100%; height:44px; min-height:44px; max-height:112px; padding:8px 2px; resize:none; overflow-y:auto; border:0; outline:0; color:var(--text); background:transparent; font-size:16px; line-height:1.4; }
+    textarea::placeholder { color:var(--muted); }
+    .quick-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:0; border:0; background:transparent; }
+    .quick-actions button, .quick-actions a { min-width:0; min-height:44px; display:grid; place-items:center; padding:5px 7px; border:1px solid var(--line); border-radius:6px; background:var(--surface-subtle); color:var(--text); font-size:11px; line-height:1.15; font-weight:700; text-align:center; text-decoration:none; }
+    .quick-actions button:hover, .quick-actions a:hover, .quick-actions button:active, .quick-actions a:active { border-color:var(--line-strong); background:var(--surface-hover); color:var(--accent-strong); }
+    .quick-actions button.active { background:var(--soft); color:var(--accent-strong); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,var(--line)); }
+    .composer-actions { display:flex; align-items:center; gap:7px; }
+    .tool-button { min-width:44px; min-height:44px; padding:0 10px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--text); font-size:12px; font-weight:700; }
+    .send-button { min-width:74px; min-height:44px; margin-left:auto; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:var(--accent-ink); font-weight:750; }
+    .send-button.working { color:transparent; position:relative; }
+    .send-button.working::after { content:""; position:absolute; inset:0; margin:auto; width:16px; height:16px; border:2px solid color-mix(in srgb,var(--accent-ink) 40%,transparent); border-top-color:var(--accent-ink); border-radius:50%; animation:spin .75s linear infinite; }
+    .composer-status { min-height:16px; color:var(--muted); font-size:11px; }
+    .composer-status:empty { display:none; }
+    body.storage-onboarding .composer-shell,
+    body.storage-onboarding .new-conversation { display:none; }
+    .photo-list { display:flex; gap:7px; overflow-x:auto; }
+    .photo { position:relative; width:58px; min-width:58px; height:58px; }
+    .photo img { width:100%; height:100%; object-fit:cover; border:1px solid var(--line); border-radius:6px; }
+    .photo button { position:absolute; top:-11px; right:-11px; width:44px; height:44px; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--surface); color:var(--danger); font-weight:800; }
+    .bottom-nav {
+      position:fixed;
+      z-index:31;
+      left:0;
+      right:0;
+      bottom:0;
+      height:calc(58px + env(safe-area-inset-bottom));
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      padding:0 max(8px,calc((100vw - 720px)/2 + 8px)) env(safe-area-inset-bottom);
+      border-top:1px solid var(--line);
+      background:var(--surface);
+    }
+    .bottom-nav a { display:grid; place-items:center; color:var(--muted); text-decoration:none; font-size:12px; font-weight:700; }
+    .bottom-nav a.active { color:var(--accent); }
+    dialog { width:min(520px,calc(100vw - 24px)); border:0; border-radius:8px; padding:0; background:#101715; color:#fff; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+    dialog::backdrop { background:rgba(0,0,0,.65); }
+    .scanner-head { min-height:52px; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; }
+    .scanner-head button { width:44px; height:44px; border:0; border-radius:50%; background:#fff; color:#111; font-size:18px; }
+    .scanner-view { position:relative; aspect-ratio:3/4; background:#000; overflow:hidden; }
+    .scanner-view video { width:100%; height:100%; object-fit:cover; }
+    .scan-frame { position:absolute; inset:18%; border:3px solid #fff; border-radius:8px; box-shadow:0 0 0 999px rgba(0,0,0,.34); }
+    .scanner-status { min-height:46px; display:grid; place-items:center; padding:10px; color:#dbe5e2; font-size:13px; }
+    dialog.install-dialog { width:min(420px,calc(100vw - 24px)); background:var(--surface); color:var(--text); }
+    .install-dialog-head { min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-bottom:1px solid var(--line); }
+    .install-dialog-head strong { font-size:16px; }
+    .install-dialog-head button { width:44px; height:44px; padding:0; border-color:var(--line); background:var(--surface); color:var(--text); font-size:20px; }
+    .install-dialog-body { padding:18px; }
+    .install-dialog-body > p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+    .install-steps { display:grid; gap:0; margin:16px 0 18px; padding:0; border-top:1px solid var(--line); list-style:none; counter-reset:install-step; }
+    .install-steps li { min-height:58px; display:grid; grid-template-columns:28px minmax(0,1fr); gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); counter-increment:install-step; }
+    .install-steps li::before { content:counter(install-step); width:26px; aspect-ratio:1; display:grid; place-items:center; border-radius:50%; background:var(--soft); color:var(--accent-strong); font-size:12px; font-weight:800; }
+    .install-steps strong, .install-steps span { display:block; }
+    .install-steps strong { font-size:13px; }
+    .install-steps span { margin-top:2px; color:var(--muted); font-size:12px; line-height:1.4; }
+    .install-dialog-actions { display:grid; }
+    .offline-discard-actions { grid-template-columns:1fr 1fr; gap:8px; margin-top:18px; }
+    .offline-discard-actions .danger { border-color:var(--danger); background:var(--danger); color:#fff; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (min-width:681px) {
+      html { scroll-padding-bottom:calc(var(--dock-space) + 12px); }
+      header { min-height:62px; padding:12px 20px; }
+      main {
+        display:grid;
+        grid-template-columns:minmax(0,var(--command-max)) minmax(280px,340px);
+        grid-template-areas:
+          "heading heading"
+          "feed sidecar";
+        align-content:start;
+        column-gap:24px;
+        width:min(var(--workspace-max),100%);
+        min-height:calc(100vh - 62px);
+        padding:28px var(--page-gutter) calc(var(--dock-space) + 12px);
+      }
+      .assistant-page-heading { grid-area:heading; width:100%; display:flex; margin-inline:0; }
+      .assistant-page-heading p { max-width:620px; }
+      .assistant-sidecar { grid-area:sidecar; min-width:0; display:grid; align-content:start; gap:12px; }
+      .assistant-sidecar > * { margin:0; }
+      main:not(:has(.assistant-sidecar > :not([hidden]))) {
+        grid-template-columns:minmax(0,var(--command-max));
+        grid-template-areas:
+          "heading"
+          "feed";
+        justify-content:center;
+      }
+      main:not(:has(.assistant-sidecar > :not([hidden]))) .assistant-sidecar { display:none; }
+      .assistant-main > .feed { grid-area:feed; width:100%; min-width:0; margin:0; }
+      .feed > .message { width:fit-content; }
+      .feed > .message.system,
+      .feed > .plan-card,
+      .feed > .evidence-card { width:min(var(--conversation-max),100%); }
+      .feed > .message.user { margin-left:auto; }
+      .feed:has(> .welcome:only-child) { margin-top:0; margin-bottom:18px; }
+      .feed:has(> .welcome:only-child) .welcome { padding:0 0 22px; }
+      .composer-shell {
+        bottom:0;
+        padding:12px max(20px,calc((100vw - var(--workspace-max))/2 + var(--page-gutter)));
+        background:color-mix(in srgb,var(--bg) 96%,transparent);
+        backdrop-filter:blur(14px);
+        -webkit-backdrop-filter:blur(14px);
+      }
+      .composer-shell > * { width:min(var(--command-max),100%); margin-right:auto; }
+      body:not(:has(.assistant-sidecar > :not([hidden]))) .composer-shell > * { margin-left:auto; }
+      .composer {
+        grid-template-columns:minmax(0,1fr) auto;
+        grid-template-areas:
+          "location location"
+          "photos photos"
+          "input input"
+          "quick tools"
+          "status status";
+        padding:12px;
+      }
+      .composer > textarea { grid-area:input; }
+      .composer > .quick-actions { grid-area:quick; }
+      .composer > .composer-actions { grid-area:tools; }
+      .composer > .composer-status { grid-area:status; }
+      .composer > .photo-list { grid-area:photos; }
+      .composer > .location-context { grid-area:location; }
+      .bottom-nav { display:none; }
+    }
+    @media (min-width:681px) and (max-width:1120px) {
+      main {
+        grid-template-columns:minmax(0,1fr);
+        grid-template-areas:
+          "heading"
+          "sidecar"
+          "feed";
+      }
+      .assistant-sidecar { width:min(var(--command-max),100%); }
+    }
+    @media (max-width:520px) {
+      header { flex-wrap:wrap; }
+      header .magpie-workspace-control { order:3; width:100%; }
+      header .magpie-workspace-select { max-width:none; flex:1; }
+      .welcome h2 { font-size:26px; }
+      .welcome { padding:18px 2px; }
+      .welcome-launcher { min-height:52px; }
+      .message { max-width:94%; }
+      .connection span:last-child { display:none; }
+    }
+    @media (prefers-reduced-motion:reduce) { * { animation:none !important; scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body class="product-app">
+  <header class="product-header">
+    <div class="brand product-brand"><span class="brand-mark product-mark" aria-hidden="true">M</span><div class="product-title"><h1>Magpie</h1><span class="product-context" data-product-context>Assistant</span></div><nav class="product-nav" data-product-nav aria-label="Product views"></nav></div>
+    <div class="product-header-actions"><button id="newConversation" class="secondary install-button new-conversation" type="button" title="New conversation" aria-label="Start a new conversation">+</button><button id="installButton" class="secondary install-button" type="button" hidden>Install</button><div id="connection" class="connection product-status"><span class="connection-dot"></span><span id="connectionText">Connecting</span></div></div>
+  </header>
+
+  <main class="assistant-main">
+    <section class="assistant-page-heading product-page-heading" aria-labelledby="assistantPageTitle">
+      <div><h2 id="assistantPageTitle">Ask Magpie</h2><p>Find and put away items across every storage space. Correct Magpie in the same conversation when something is not right.</p></div>
+    </section>
+    <aside class="assistant-sidecar" aria-label="Assistant attention items">
+      <section id="reviews" class="reviews product-inline-notice" hidden aria-label="Storage and items to check">
+        <div class="section-head"><div class="review-heading"><strong>Storage checks</strong><span id="reviewCount" class="review-count"></span></div><button id="reviewToggle" class="clear-button" type="button" aria-expanded="true">Later</button></div>
+        <div id="reviewList" class="review-list"></div>
+      </section>
+      <section id="offlineQueue" class="offline-queue product-inline-notice" hidden aria-label="Saved offline requests">
+        <div class="section-head"><div class="offline-heading"><strong id="offlineQueueCount">Saved offline</strong><span id="offlineQueueStatus">Waiting for a connection</span></div><div class="offline-actions"><button id="retryOffline" class="clear-button" type="button">Retry</button><button id="clearOffline" class="clear-button" type="button">Discard</button></div></div>
+        <div id="offlineQueueList" class="offline-list"></div>
+      </section>
+    </aside>
+    <section id="feed" class="feed" aria-live="polite" aria-atomic="false">
+      <div id="welcome" class="welcome">
+        <div class="welcome-copy"><span>Ready</span><h2>What do you need?</h2></div>
+        <div class="welcome-launchers">
+          <button class="welcome-launcher" type="button" data-action="find"><span class="welcome-launcher-copy"><strong>Find an item</strong><span>Search all storage</span></span></button>
+          <button class="welcome-launcher" type="button" data-action="put-away"><span class="welcome-launcher-copy"><strong>Put away an item</strong><span>Choose the right existing place</span></span></button>
+          <button class="welcome-launcher" type="button" data-action="sort-photo"><span class="welcome-launcher-copy"><strong>Sort a photo</strong><span>Identify what is in front of you</span></span></button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="composer-shell">
+    <section id="lights" class="product-active-finds assistant-active-finds" hidden aria-labelledby="lightCount" aria-live="polite">
+      <div class="product-active-finds-heading"><h3 id="lightCount">Active locations</h3></div>
+      <button id="clearLights" class="secondary" type="button">Clear</button>
+      <div id="lightList" class="product-active-finds-list"></div>
+    </section>
+    <div class="composer">
+      <div id="photoList" class="photo-list" hidden></div>
+      <div id="locationContext" class="location-context" hidden><span id="locationContextLabel"></span><button id="clearLocationContext" type="button" aria-label="Clear selected location">&times;</button></div>
+      <textarea id="command" rows="1" placeholder="Ask Magpie" autocomplete="off"></textarea>
+      <div class="quick-actions" aria-label="Quick actions">
+        <button type="button" data-action="find" data-mode-action aria-pressed="false">Find</button>
+        <button type="button" data-action="put-away" data-mode-action aria-pressed="false">Put away</button>
+        <button type="button" data-action="learn-rule" data-mode-action aria-pressed="false">Teach Magpie</button>
+        <a href="/storage?view=rules">Rules</a>
+      </div>
+      <div class="composer-actions">
+        <button id="scanButton" class="tool-button" type="button" title="Scan QR label">Scan</button>
+        <button id="photoButton" class="tool-button" type="button" title="Take or add photo">Photo</button>
+        <button id="sortPhotoButton" class="tool-button" type="button" data-action="sort-photo" title="Sort the next photo">Sort photo</button>
+        <button id="micButton" class="tool-button" type="button" title="Speak a find, put-away, or confirmation">Mic</button>
+        <button id="sendButton" class="send-button" type="button">Send</button>
+      </div>
+      <div id="composerStatus" class="composer-status" role="status"></div>
+      <input id="photoInput" type="file" accept="image/*,.heic,.heif" capture="environment" multiple hidden>
+    </div>
+  </div>
+
+  <nav class="bottom-nav product-bottom-nav" data-product-nav aria-label="Product views"></nav>
+
+  <dialog id="scannerDialog">
+    <div class="scanner-head"><strong>Scan label</strong><button id="closeScanner" type="button" aria-label="Close scanner">×</button></div>
+    <div class="scanner-view"><video id="scannerVideo" playsinline muted></video><div class="scan-frame"></div></div>
+    <div id="scannerStatus" class="scanner-status">Starting camera</div>
+  </dialog>
+
+  <dialog id="installDialog" class="install-dialog">
+    <div class="install-dialog-head"><strong>Install Magpie</strong><button id="closeInstall" class="secondary" type="button" aria-label="Close installation guide">&times;</button></div>
+    <div class="install-dialog-body">
+      <p id="installIntro">Keep Magpie on your Home Screen for quick access to find, put away, photos, and labels.</p>
+      <ol class="install-steps">
+        <li><span><strong>Open Share</strong><span>In Safari, tap Share. Some layouts show More, then Share.</span></span></li>
+        <li><span><strong>Add to Home Screen</strong><span>Scroll through the actions and choose Add to Home Screen.</span></span></li>
+        <li><span><strong>Open as Web App</strong><span>Turn it on, then tap Add.</span></span></li>
+      </ol>
+      <div class="install-dialog-actions"><button id="finishInstall" type="button">Done</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="offlineDiscardDialog" class="install-dialog">
+    <div class="install-dialog-head"><strong>Discard saved requests?</strong><button id="closeOfflineDiscard" class="secondary" type="button" aria-label="Close discard dialog">&times;</button></div>
+    <div class="install-dialog-body">
+      <p id="offlineDiscardSummary">These requests have not changed inventory and can be retried when Magpie reconnects.</p>
+      <div class="install-dialog-actions offline-discard-actions">
+        <button id="cancelOfflineDiscard" class="secondary" type="button">Keep requests</button>
+        <button id="confirmOfflineDiscard" class="danger" type="button">Discard</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const COLORS = [
+      {name:"Red", rgb:[255,0,0]},
+      {name:"Blue", rgb:[0,105,255]},
+      {name:"Green", rgb:[0,180,90]},
+      {name:"Yellow", rgb:[255,190,0]},
+      {name:"Magenta", rgb:[230,0,190]},
+      {name:"Cyan", rgb:[0,210,220]}
+    ];
+    const byId = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+    let pendingPhotos = [];
+    let pendingPhotoPayloads = [];
+    let pendingPlan = null;
+    let pendingCommand = "";
+    let pendingSourceInteractionId = null;
+    let pendingPlanPhotoIds = [];
+    let proposalLights = [];
+    let activeFinds = [];
+    let latestInteractionId = 0;
+    let lastVoiceUpdatedAt = -1;
+    let running = true;
+    let working = false;
+    let revisingPlan = false;
+    let currentLocationId = "";
+    let currentLocationPath = "";
+    let conversationMode = "";
+    let pendingInputSource = "mobile";
+    let destinationTargets = [];
+    let deferredInstallPrompt = null;
+    let photoIntent = "";
+    let reviewItems = [];
+    let reviewPlaceChecks = [];
+    let reviewsCollapsed = window.matchMedia("(max-width:680px)").matches;
+    let offlineRequests = [];
+    let replayingOffline = false;
+    let resumedOfflinePhotoIds = [];
+    let resumedOfflinePhotoPayloads = [];
+    let scannerStream = null;
+    let scannerFrame = 0;
+    let scannerCanvas = null;
+    let scannerContext = null;
+    let scannerLastDecode = 0;
+    let pendingPlanRevealFrame = 0;
+    const seenInteractions = new Set();
+    const summarizedConfirmationInteractions = new Set();
+    const summarizedConfirmationSources = new Set();
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {cache:"no-store", ...options});
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(body.detail || response.statusText || "Request failed");
+        error.status = response.status;
+        error.interactionId = Number(response.headers.get("X-Magpie-Interaction-ID") || 0);
+        error.action = response.headers.get("X-Magpie-Error-Action") || "";
+        error.failureCategory = response.headers.get("X-Magpie-Failure-Category") || "";
+        rememberInteraction(error.interactionId);
+        throw error;
+      }
+      return body;
+    }
+
+    function appIsInstalled() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    function isIosDevice() {
+      const platform = String(window.navigator.platform || "");
+      return /iPhone|iPad|iPod/.test(window.navigator.userAgent)
+        || (platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+    }
+
+    function isIosSafari() {
+      return isIosDevice()
+        && /Safari/.test(window.navigator.userAgent)
+        && !/(CriOS|FxiOS|EdgiOS|OPiOS)/.test(window.navigator.userAgent);
+    }
+
+    function iosInstallAvailable() {
+      return isIosDevice() && window.isSecureContext;
+    }
+
+    function syncInstallButton() {
+      byId("installButton").hidden = appIsInstalled() || (!deferredInstallPrompt && !iosInstallAvailable());
+    }
+
+    function showIosInstallHelp() {
+      byId("installIntro").textContent = isIosSafari()
+        ? "Keep Magpie on your Home Screen for quick access to find, put away, photos, and labels."
+        : "Open this page in Safari, then add Magpie to your Home Screen.";
+      byId("installDialog").showModal();
+    }
+
+    function setupPwaInstall() {
+      syncInstallButton();
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        syncInstallButton();
+      });
+      window.addEventListener("appinstalled", () => {
+        deferredInstallPrompt = null;
+        syncInstallButton();
+        setComposerStatus("Magpie installed");
+      });
+      byId("installButton").onclick = async () => {
+        const prompt = deferredInstallPrompt;
+        if (!prompt) {
+          if (iosInstallAvailable()) showIosInstallHelp();
+          return;
+        }
+        deferredInstallPrompt = null;
+        syncInstallButton();
+        try {
+          await prompt.prompt();
+          const choice = await prompt.userChoice;
+          if (choice?.outcome !== "accepted") setComposerStatus("Install canceled");
+        } catch (error) {
+          setComposerStatus("Install unavailable", "error");
+        }
+      };
+      const closeInstallHelp = () => byId("installDialog").close();
+      byId("closeInstall").onclick = closeInstallHelp;
+      byId("finishInstall").onclick = closeInstallHelp;
+      byId("installDialog").addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeInstallHelp();
+      });
+    }
+
+    function setConnection(online, text) {
+      byId("connection").classList.toggle("online", online);
+      byId("connectionText").textContent = text;
+    }
+
+    function setComposerStatus(text, tone = "") {
+      const status = byId("composerStatus");
+      status.textContent = text || "";
+      status.style.color = tone === "error" ? "var(--danger)" : "var(--muted)";
+    }
+
+    function resizeCommandInput() {
+      const command = byId("command");
+      command.style.height = "44px";
+      command.style.height = `${Math.min(Math.max(command.scrollHeight, 44), 112)}px`;
+    }
+
+    function clearCommandInput() {
+      byId("command").value = "";
+      resizeCommandInput();
+    }
+
+    function friendlyError(error, fallback = "Magpie could not complete that request.") {
+      const message = String(error?.message || "");
+      if (/API_KEY|LLM endpoints|AI service|not configured/i.test(message)) return "Magpie's AI service is unavailable.";
+      return message || fallback;
+    }
+
+    function providerFailureHtml(error, message) {
+      const action = String(error?.action || "");
+      if (!action.startsWith("model_")) return "";
+      const accountActions = new Set(["model_authentication_error", "model_quota_exhausted"]);
+      const control = accountActions.has(action)
+        ? '<a class="receipt-action" href="/account#usageSection">Open usage</a>'
+        : '<button class="receipt-action" type="button" data-retry-request>Try again</button>';
+      return `<strong>${escapeHtml(message)}</strong><span class="message-meta">Simple finds and put-away requests still work.</span><div class="receipt-actions">${control}</div>`;
+    }
+
+    function appendRequestFailure(error, message, command) {
+      const content = providerFailureHtml(error, message);
+      if (!content) return null;
+      const node = appendMessage("system", content, {interactionId:error.interactionId});
+      const retry = node.querySelector("[data-retry-request]");
+      if (retry) retry.onclick = () => {
+        byId("command").value = command;
+        resizeCommandInput();
+        submit();
+      };
+      return node;
+    }
+
+    function setWorking(value) {
+      working = value;
+      byId("sendButton").disabled = value;
+      byId("newConversation").disabled = value;
+      byId("sendButton").classList.toggle("working", value);
+      byId("command").disabled = value;
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.disabled = value;
+      });
+    }
+
+    function updateDockSpace() {
+      const composerHeight = byId("composerStatus")?.closest(".composer-shell")?.getBoundingClientRect().height || 0;
+      const navHeight = document.querySelector(".bottom-nav")?.getBoundingClientRect().height || 0;
+      document.documentElement.style.setProperty("--dock-space",`${Math.ceil(composerHeight + navHeight)}px`);
+      revealPendingPlan(byId("feed")?.querySelector(".plan-card"));
+    }
+
+    function revealPendingPlan(node) {
+      if (!node) return;
+      if (pendingPlanRevealFrame) cancelAnimationFrame(pendingPlanRevealFrame);
+      pendingPlanRevealFrame = requestAnimationFrame(() => {
+        pendingPlanRevealFrame = 0;
+        if (!node.isConnected) return;
+        const dockTop = document.querySelector(".composer-shell")?.getBoundingClientRect().top ?? window.innerHeight;
+        const actions = node.querySelector(".plan-actions") || node;
+        const overlap = actions.getBoundingClientRect().bottom - dockTop + 12;
+        if (overlap > 0) window.scrollBy({top:Math.ceil(overlap),behavior:"auto"});
+      });
+    }
+
+    function renderLocationContext() {
+      const context = byId("locationContext");
+      if (!currentLocationId) {
+        context.hidden = true;
+        byId("locationContextLabel").textContent = "";
+        return;
+      }
+      const requestedAction = new URLSearchParams(location.search).get("action");
+      const prefix = conversationMode === "put-away" || requestedAction === "put-away"
+        ? "Put-away destination"
+        : "Selected place";
+      byId("locationContextLabel").textContent = `${prefix}: ${currentLocationPath || currentLocationId}`;
+      context.hidden = false;
+    }
+
+    async function setLocationContext(locationId) {
+      currentLocationId = String(locationId || "").trim();
+      currentLocationPath = "";
+      renderLocationContext();
+      if (!currentLocationId) {
+        updateDockSpace();
+        return;
+      }
+      try {
+        const data = await api(`/locations/${encodeURIComponent(currentLocationId)}`);
+        currentLocationPath = MagpieLocationDisplay.pathText(data.path || [], [], " › ")
+          || data.location?.label
+          || currentLocationId;
+        renderLocationContext();
+      } catch (error) {
+        currentLocationId = "";
+        currentLocationPath = "";
+        renderLocationContext();
+        setComposerStatus(friendlyError(error,"Could not open that location"), "error");
+      }
+      updateDockSpace();
+    }
+
+    function clearLocationContext() {
+      setLocationContext("");
+      const params = new URLSearchParams(location.search);
+      params.delete("location");
+      const query = params.toString();
+      history.replaceState(null,"",`${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
+      setComposerStatus(conversationMode ? quickActionPrompt(conversationMode) : "Ready");
+    }
+
+    function consumeLaunchParams() {
+      const params = new URLSearchParams(location.search);
+      const before = params.toString();
+      params.delete("prompt");
+      params.delete("action");
+      params.delete("auto");
+      params.delete("resume");
+      if (params.toString() === before) return;
+      const query = params.toString();
+      history.replaceState(null,"",`${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
+      renderLocationContext();
+    }
+
+    function generalWelcomeHtml() {
+      return `<div class="welcome-copy"><span>Ready</span><h2>What do you need?</h2></div>
+        <div class="welcome-launchers">
+          <button class="welcome-launcher" type="button" data-action="find"><span class="welcome-launcher-copy"><strong>Find an item</strong><span>Search all storage</span></span></button>
+          <button class="welcome-launcher" type="button" data-action="put-away"><span class="welcome-launcher-copy"><strong>Put away an item</strong><span>Choose the right existing place</span></span></button>
+          <button class="welcome-launcher" type="button" data-action="sort-photo"><span class="welcome-launcher-copy"><strong>Sort a photo</strong><span>Identify what is in front of you</span></span></button>
+        </div>`;
+    }
+
+    function renderGeneralWelcome() {
+      setStorageOnboarding(false);
+      const feed = byId("feed");
+      feed.innerHTML = `<div id="welcome" class="welcome">${generalWelcomeHtml()}</div>`;
+      bindActionButtons(feed);
+    }
+
+    async function startNewConversation() {
+      if (pendingPlan) {
+        setComposerStatus("Confirm or cancel the current proposal first");
+        revealPendingPlan(byId("feed").querySelector(".plan-card"));
+        return;
+      }
+      renderGeneralWelcome();
+      reviewsCollapsed = true;
+      renderReviewQueue();
+      setConversationMode("");
+      clearCommandInput();
+      setComposerStatus("");
+      consumeLaunchParams();
+      await renderWorkspaceWelcome();
+      window.scrollTo({top:0,behavior:"auto"});
+    }
+
+    function appendMessage(kind, content, options = {}) {
+      setStorageOnboarding(false);
+      byId("welcome")?.remove();
+      const node = document.createElement("article");
+      node.className = `message ${kind}`;
+      if (options.interactionId) node.dataset.interactionId = String(options.interactionId);
+      if (options.clientRequestId) node.dataset.clientRequestId = String(options.clientRequestId);
+      node.innerHTML = content;
+      byId("feed").appendChild(node);
+      node.scrollIntoView({behavior:"smooth", block:"nearest"});
+      return node;
+    }
+
+    function clientRequestMessage(clientRequestId) {
+      const id = String(clientRequestId || "");
+      if (!id) return null;
+      return Array.from(byId("feed").querySelectorAll("[data-client-request-id]"))
+        .find((node) => node.dataset.clientRequestId === id) || null;
+    }
+
+    function markClientRequestMessage(clientRequestId, label) {
+      const node = clientRequestMessage(clientRequestId);
+      if (!node) return null;
+      let status = node.querySelector("[data-client-request-status]");
+      if (!status) {
+        status = document.createElement("div");
+        status.className = "message-meta";
+        status.dataset.clientRequestStatus = "";
+        node.appendChild(status);
+      }
+      status.textContent = label;
+      return node;
+    }
+
+    function appendInteractionUser(interaction, response = {}) {
+      const clientRequestId = String(response.client_request_id || "");
+      const existing = clientRequestMessage(clientRequestId);
+      if (existing) {
+        existing.dataset.interactionId = String(interaction.id || "");
+        return existing;
+      }
+      return appendMessage(
+        "user",
+        escapeHtml(interaction.command || "Magpie request"),
+        {interactionId:interaction.id, clientRequestId},
+      );
+    }
+
+    function hasExplicitAssistantIntent() {
+      const params = new URLSearchParams(location.search);
+      return ["action","prompt","resume","location"].some((key) => Boolean(params.get(key)));
+    }
+
+    function setStorageOnboarding(active) {
+      document.body.classList.toggle("storage-onboarding", active);
+      requestAnimationFrame(updateDockSpace);
+    }
+
+    async function renderWorkspaceWelcome() {
+      const welcome = byId("welcome");
+      if (!welcome) return;
+      try {
+        const data = await api("/locations");
+        if ((data.locations || []).length) {
+          setStorageOnboarding(false);
+          return;
+        }
+        setStorageOnboarding(!hasExplicitAssistantIntent());
+        welcome.innerHTML = `<h2>Set up your storage</h2><p>Start with a home, workshop, studio, or storage unit. Add your first usable bin or shelf, then Magpie can find and put away items.</p><div class="welcome-actions"><a class="primary" href="/storage?view=places&onboarding=1">Set up storage</a></div>`;
+      } catch (error) {
+        // Keep the general welcome when workspace state is temporarily unavailable.
+        setStorageOnboarding(false);
+      }
+    }
+
+    function pathLabel(match) {
+      const path = Array.isArray(match?.path) ? match.path : [];
+      return MagpieLocationDisplay.pathText(path, [], " › ") || match?.lit_location || match?.location_id || "";
+    }
+
+    function findRows(finds) {
+      const rows = [];
+      for (const entry of finds || []) {
+        const color = Array.isArray(entry.color) && entry.color.length === 3 ? entry.color : [255,255,255];
+        for (const match of entry.matches || []) rows.push({
+          activeFindId:Number(entry.id || 0),
+          kind:entry.kind === "put_away" ? "put_away" : "find",
+          itemId:Number(match.item_id || 0),
+          query:entry.query || "",
+          name:match.name || entry.query || "Location",
+          path:pathLabel(match),
+          color,
+          locationId:match.lit_location || match.location_id || "",
+          storedLocationId:match.location_id || "",
+        });
+      }
+      return rows;
+    }
+
+    function uniqueLightRows(rows) {
+      const seen = new Set();
+      return (rows || []).filter((row) => {
+        const path = String(row.path || "").replace(/\s*(?:>|›)\s*/g,"/").toLowerCase();
+        const key = JSON.stringify([row.kind || "find", String(row.name || "").trim().toLowerCase(), row.locationId || path, row.color || []]);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderLights() {
+      const rows = uniqueLightRows([...findRows(activeFinds), ...proposalLights]);
+      byId("lights").hidden = rows.length === 0;
+      byId("lightCount").textContent = `${rows.length} active location${rows.length === 1 ? "" : "s"}`;
+      byId("lightList").innerHTML = rows.map((row) => `<div class="product-active-find${row.kind === "find" && row.itemId ? " has-action" : ""}">
+        <span class="product-active-find-swatch" style="--find-color:rgb(${row.color.join(",")})"></span>
+        <div class="product-active-find-copy"><span class="product-active-find-kind">${row.kind === "put_away" ? "Put away" : "Find"}</span><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.path)}</span></div>
+        ${row.kind === "find" && row.itemId ? `<button type="button" data-find-not-here data-item-id="${row.itemId}" data-location-id="${escapeHtml(row.storedLocationId)}" data-active-find-id="${row.activeFindId}" data-query="${escapeHtml(row.query)}">Not here</button>` : ""}
+      </div>`).join("");
+      byId("lightList").querySelectorAll("[data-find-not-here]").forEach((button) => {
+        button.onclick = () => reportFindNotHere(button);
+      });
+      requestAnimationFrame(updateDockSpace);
+    }
+
+    async function reportFindNotHere(button) {
+      button.disabled = true;
+      try {
+        const result = await api("/assistant/find/not-here", {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({
+            item_id:Number(button.dataset.itemId),
+            location_id:button.dataset.locationId,
+            active_find_id:Number(button.dataset.activeFindId) || null,
+            query:button.dataset.query || "",
+            source:"mobile",
+          }),
+        });
+        activeFinds = Array.isArray(result.active_finds) ? result.active_finds : [];
+        renderLights();
+        await loadReviewQueue();
+        appendMessage("agent", escapeHtml(result.message || "Marked the location for review."));
+        setComposerStatus(result.light_ok === false ? "Location marked; light controller unavailable" : "Location marked for review");
+      } catch (error) {
+        button.disabled = false;
+        setComposerStatus(friendlyError(error,"Could not mark that location for review"), "error");
+      }
+    }
+
+    function renderReviewQueue() {
+      const section = byId("reviews");
+      const total = reviewPlaceChecks.length + reviewItems.length;
+      section.hidden = total === 0;
+      section.classList.toggle("collapsed", reviewsCollapsed);
+      byId("reviewCount").textContent = `${total} due`;
+      byId("reviewToggle").textContent = reviewsCollapsed ? "Review" : "Later";
+      byId("reviewToggle").setAttribute("aria-expanded", String(!reviewsCollapsed));
+      byId("reviewList").hidden = reviewsCollapsed;
+      const placeCards = reviewPlaceChecks.map((place) => {
+        const confidence = place.confidence || {};
+        const itemCount = Number(place.item_count || confidence.item_count || 0);
+        const reviewCount = Number(place.review_count || confidence.review_count || 0);
+        const locationId = String(place.location_id || "");
+        const checklistUrl = `/storage?view=places&location=${encodeURIComponent(locationId)}&check=1`;
+        const detail = `${itemCount} item record${itemCount === 1 ? "" : "s"}${reviewCount ? ` · ${reviewCount} uncertain` : ""}`;
+        return `<article class="review-card place-check" data-review-place="${escapeHtml(locationId)}">
+          <div><div class="review-kind">Physical check</div><div class="review-name">${escapeHtml(place.path_label || place.label || locationId)}</div><div class="review-meta">${escapeHtml(confidence.label || "Check this occupied storage place.")}</div><div class="review-meta">${escapeHtml(detail)}</div></div>
+          <div class="review-actions"><a class="receipt-action primary" href="${escapeHtml(checklistUrl)}">${escapeHtml(place.action_label || "Check contents")}</a><a class="receipt-action" href="/storage?view=places&location=${encodeURIComponent(locationId)}">Open place</a></div>
+        </article>`;
+      });
+      const itemCards = reviewItems.map((item) => {
+        const photo = Array.isArray(item.photos) ? item.photos[0] : "";
+        const missingDuringRetrieval = item.review_reason === "Reported missing during retrieval.";
+        return `<article class="review-card" data-review-item="${escapeHtml(item.item_id)}" data-review-location="${escapeHtml(item.bin_id)}">
+          ${photo ? `<img class="review-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(item.name)}">` : `<div class="review-photo empty">No photo</div>`}
+          <div><div class="review-name">${escapeHtml(item.name)}</div><div class="review-meta">${escapeHtml(`${item.quantity} ${item.unit} · ${item.location_path_label || item.bin_id}`)}</div><div class="review-meta">${escapeHtml(item.review_reason || "Magpie was not certain about this record.")}</div></div>
+          <div class="review-actions"><button type="button" data-review-approve>Looks right</button>${missingDuringRetrieval ? `<a class="receipt-action" href="/storage?view=inventory&review_item=${encodeURIComponent(item.item_id)}&from=${encodeURIComponent(item.bin_id)}">Move item</a>` : `<a class="receipt-action" href="/storage?view=inventory&edit_item=${encodeURIComponent(item.item_id)}&from=${encodeURIComponent(item.bin_id)}">Fix item</a>`}</div>
+        </article>`;
+      });
+      byId("reviewList").innerHTML = [...placeCards, ...itemCards].join("");
+      byId("reviewList").querySelectorAll("[data-review-item]").forEach((card) => {
+        const itemId = Number(card.dataset.reviewItem);
+        const binId = card.dataset.reviewLocation;
+        card.querySelector("[data-review-approve]").onclick = (event) => approveReviewItem(itemId, binId, event.currentTarget);
+      });
+    }
+
+    async function loadReviewQueue() {
+      try {
+        const data = await api("/review/queue?limit=20");
+        reviewItems = Array.isArray(data.items) ? data.items : [];
+        reviewPlaceChecks = Array.isArray(data.place_checks) ? data.place_checks : [];
+      } catch (error) {
+        reviewItems = [];
+        reviewPlaceChecks = [];
+      }
+      renderReviewQueue();
+    }
+
+    async function approveReviewItem(itemId, binId, button) {
+      button.disabled = true;
+      button.textContent = "Saving";
+      try {
+        const result = await api("/inventory/reviewed", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({item_id:itemId, bin_id:binId})});
+        reviewItems = reviewItems.filter((item) => !(Number(item.item_id) === itemId && item.bin_id === binId));
+        renderReviewQueue();
+        setComposerStatus(result.approved?.name ? `${result.approved.name} checked` : "Item checked");
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Looks right";
+        setComposerStatus(friendlyError(error,"Could not check item"),"error");
+      }
+    }
+
+    const OFFLINE_DB_NAME = "magpie-mobile";
+    const OFFLINE_STORE_NAME = "pending-requests";
+    const PHOTO_RETRY_STORE_NAME = "photo-attachment-retries";
+    const OFFLINE_QUEUE_LIMIT = 25;
+    const OFFLINE_PHOTO_BYTES_LIMIT = 18 * 1024 * 1024;
+
+    function offlineQueueIdentity() {
+      const identity = window.magpieClientBootstrap?.identity;
+      return {
+        workspaceId:String(identity?.workspace_id || ""),
+        userId:String(identity?.user_id || ""),
+      };
+    }
+
+    function offlineQueueScope() {
+      const identity = offlineQueueIdentity();
+      if (!identity.workspaceId) return "local";
+      return JSON.stringify([identity.workspaceId,identity.userId]);
+    }
+
+    function removeUnownedHostedEntries(store) {
+      const cursor = store.openCursor();
+      cursor.onsuccess = () => {
+        const current = cursor.result;
+        if (!current) return;
+        const entry = current.value || {};
+        if ((entry.scope || "local") !== "local" && !entry.owner_user_id) {
+          current.delete();
+        }
+        current.continue();
+      };
+    }
+
+    function openOfflineDb() {
+      return new Promise((resolve,reject) => {
+        if (!("indexedDB" in window)) {
+          reject(new Error("Offline storage is unavailable"));
+          return;
+        }
+        const request = indexedDB.open(OFFLINE_DB_NAME,3);
+        request.onupgradeneeded = (event) => {
+          if (!request.result.objectStoreNames.contains(OFFLINE_STORE_NAME)) {
+            request.result.createObjectStore(OFFLINE_STORE_NAME,{keyPath:"id"});
+          }
+          if (!request.result.objectStoreNames.contains(PHOTO_RETRY_STORE_NAME)) {
+            request.result.createObjectStore(PHOTO_RETRY_STORE_NAME,{keyPath:"key"});
+          }
+          if (event.oldVersion < 3) {
+            removeUnownedHostedEntries(request.transaction.objectStore(OFFLINE_STORE_NAME));
+            removeUnownedHostedEntries(request.transaction.objectStore(PHOTO_RETRY_STORE_NAME));
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Could not open offline storage"));
+      });
+    }
+
+    async function readOfflineRequests() {
+      const db = await openOfflineDb();
+      try {
+        return await new Promise((resolve,reject) => {
+          const request = db.transaction(OFFLINE_STORE_NAME,"readonly").objectStore(OFFLINE_STORE_NAME).getAll();
+          request.onsuccess = () => resolve((request.result || [])
+            .filter((entry) => (entry.scope || "local") === offlineQueueScope())
+            .sort((a,b) => String(a.queued_at).localeCompare(String(b.queued_at))));
+          request.onerror = () => reject(request.error || new Error("Could not read offline requests"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+
+    function photoPayloadBytes(payload) {
+      const encoded = String(payload?.data_base64 || "").split(",",2).pop() || "";
+      return Math.max(0,Math.floor(encoded.length * 3 / 4) - (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0));
+    }
+
+    async function saveOfflineRequest(entry) {
+      const existing = await readOfflineRequests();
+      const photoBytes = existing
+        .filter((saved) => saved.id !== entry.id)
+        .flatMap((saved) => Array.isArray(saved.photo_payloads) ? saved.photo_payloads : [])
+        .reduce((total,payload) => total + photoPayloadBytes(payload),0)
+        + (Array.isArray(entry.photo_payloads) ? entry.photo_payloads : []).reduce((total,payload) => total + photoPayloadBytes(payload),0);
+      if (photoBytes > OFFLINE_PHOTO_BYTES_LIMIT) {
+        throw new Error("Offline photos are full. Reconnect or discard a saved request before adding more.");
+      }
+      const db = await openOfflineDb();
+      try {
+        await new Promise((resolve,reject) => {
+          const transaction = db.transaction(OFFLINE_STORE_NAME,"readwrite");
+          transaction.objectStore(OFFLINE_STORE_NAME).put(entry);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error("Could not save offline request"));
+        });
+      } finally {
+        db.close();
+      }
+      const entries = await readOfflineRequests();
+      for (const stale of entries.slice(0,Math.max(0,entries.length - OFFLINE_QUEUE_LIMIT))) {
+        await deleteOfflineRequest(stale.id);
+      }
+    }
+
+    async function deleteOfflineRequest(id) {
+      const db = await openOfflineDb();
+      try {
+        await new Promise((resolve,reject) => {
+          const transaction = db.transaction(OFFLINE_STORE_NAME,"readwrite");
+          transaction.objectStore(OFFLINE_STORE_NAME).delete(id);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error("Could not remove offline request"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+
+    async function clearOfflineRequests() {
+      const entries = await readOfflineRequests();
+      for (const entry of entries) await deleteOfflineRequest(entry.id);
+    }
+
+    function renderOfflineQueue(status = "") {
+      const section = byId("offlineQueue");
+      section.hidden = offlineRequests.length === 0;
+      byId("offlineQueueCount").textContent = `${offlineRequests.length} saved offline`;
+      byId("offlineQueueStatus").textContent = status || (navigator.onLine ? "Ready to retry" : "Waiting for a connection");
+      byId("retryOffline").disabled = replayingOffline || working || Boolean(pendingPlan);
+      byId("offlineQueueList").innerHTML = offlineRequests.map((entry) => {
+        const photoCount = (entry.photo_ids || []).length + (entry.photo_payloads || []).length;
+        const metadata = [entry.current_location_id ? `For ${entry.current_location_id}` : "Needs confirmation after retry",photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+        return `<div class="offline-row" data-offline-request="${escapeHtml(entry.id)}"><div><div class="offline-command">${escapeHtml(entry.command)}</div><div class="offline-meta">${escapeHtml(metadata)}</div></div><button type="button" data-offline-edit>Edit</button></div>`;
+      }).join("");
+      byId("offlineQueueList").querySelectorAll("[data-offline-request]").forEach((row) => {
+        row.querySelector("[data-offline-edit]").onclick = () => editOfflineRequest(row.dataset.offlineRequest);
+      });
+    }
+
+    async function loadOfflineQueue(status = "") {
+      try {
+        offlineRequests = await readOfflineRequests();
+      } catch (error) {
+        offlineRequests = [];
+      }
+      renderOfflineQueue(status);
+    }
+
+    function offlineMutationEligible(action, command) {
+      if (["put-away","sort-photo"].includes(action)) return true;
+      return /^(?:put away|put|store|stash|stow|file|move|create|add|set up|organize|rename|update|learn|remember|archive|restore)\b/i.test(command.trim());
+    }
+
+    async function queueOfflineMutation({id, command, action, mode, source, photoIds, photoPayloads, destinationLocked = false}) {
+      const identity = offlineQueueIdentity();
+      await saveOfflineRequest({
+        id,
+        command,
+        action,
+        mode,
+        source:source || "mobile",
+        photo_ids:[...photoIds],
+        photo_payloads:[...photoPayloads],
+        current_location_id:currentLocationId || "",
+        destination_locked:Boolean(destinationLocked),
+        scope:offlineQueueScope(),
+        workspace_id:identity.workspaceId,
+        owner_user_id:identity.userId,
+        queued_at:new Date().toISOString()
+      });
+      await loadOfflineQueue();
+    }
+
+    async function editOfflineRequest(id) {
+      const entry = offlineRequests.find((request) => request.id === id);
+      if (!entry) return;
+      await deleteOfflineRequest(id);
+      await loadOfflineQueue();
+      setConversationMode(entry.action || "");
+      currentLocationId = entry.current_location_id || "";
+      currentLocationPath = currentLocationId;
+      resumedOfflinePhotoIds = Array.isArray(entry.photo_ids) ? [...entry.photo_ids] : [];
+      resumedOfflinePhotoPayloads = Array.isArray(entry.photo_payloads) ? [...entry.photo_payloads] : [];
+      pendingPhotoPayloads = [];
+      renderPhotos();
+      renderLocationContext();
+      byId("command").value = entry.command || "";
+      byId("command").focus();
+      setComposerStatus("Edit and send when ready");
+      updateDockSpace();
+    }
+
+    async function retryOfflineRequests() {
+      if (replayingOffline || working || pendingPlan) {
+        renderOfflineQueue(pendingPlan ? "Confirm the current request first" : "Retry paused");
+        return;
+      }
+      replayingOffline = true;
+      let retryStatus = "";
+      let requestStarted = false;
+      try {
+        await loadOfflineQueue();
+        const entry = offlineRequests[0];
+        if (!entry) return;
+        requestStarted = true;
+        setWorking(true);
+        renderOfflineQueue("Retrying saved request");
+        entry.photo_ids = Array.isArray(entry.photo_ids) ? entry.photo_ids : [];
+        entry.photo_payloads = Array.isArray(entry.photo_payloads) ? entry.photo_payloads : [];
+        while (entry.photo_payloads.length) {
+          renderOfflineQueue(`Uploading ${entry.photo_payloads.length} saved photo${entry.photo_payloads.length === 1 ? "" : "s"}`);
+          const photo = await uploadPhotoPayload(entry.photo_payloads[0]);
+          entry.photo_ids = [...new Set([...entry.photo_ids,Number(photo.id)])];
+          entry.photo_payloads.shift();
+          await saveOfflineRequest(entry);
+        }
+        const response = await api("/assistant/chat", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({text:entry.command, photo_ids:entry.photo_ids || [], current_location_id:entry.current_location_id || null, destination_locked:Boolean(entry.destination_locked), mode:entry.mode || "auto", source:entry.source || "mobile", client_request_id:entry.id})});
+        const result = normalizeResponse(response);
+        rememberInteraction(result.interaction_id);
+        const replayedMessage = markClientRequestMessage(entry.id, "Saved offline");
+        if (!replayedMessage) {
+          appendMessage(
+            "user",
+            `${escapeHtml(entry.command)}<div class="message-meta" data-client-request-status>Saved offline</div>`,
+            {clientRequestId:entry.id, interactionId:result.interaction_id},
+          );
+        }
+        await deleteOfflineRequest(entry.id);
+        await loadOfflineQueue();
+        renderResponse(response,entry.command,entry.photo_ids || []);
+      } catch (error) {
+        retryStatus = error.status ? `Needs attention: ${friendlyError(error)}` : "Waiting for a connection";
+      } finally {
+        replayingOffline = false;
+        if (requestStarted) setWorking(false);
+        renderOfflineQueue(retryStatus);
+      }
+    }
+
+    function resultRows(results, assignments = []) {
+      const colorByLocation = {};
+      assignments.forEach((entry) => { if (entry.location_id) colorByLocation[entry.location_id] = entry.color; });
+      return (results || []).map((result, index) => {
+        const color = colorByLocation[result.location_id] || COLORS[index % COLORS.length].rgb;
+        const name = escapeHtml(result.name || "Item");
+        const identity = result.item_id == null ? `<strong>${name}</strong>`
+          : `<a href="/storage?view=inventory&item=${encodeURIComponent(result.item_id)}"><strong>${name}</strong></a>`;
+        const quantity = result.quantity == null ? "" : `${result.quantity} ${result.unit || "each"}`;
+        return `<li class="result-row"><span class="swatch" style="--swatch:rgb(${color.join(",")})"></span><span>${identity}<span class="message-meta">${escapeHtml(pathLabel(result))}</span><span class="message-meta">${escapeHtml(quantity)}</span></span></li>`;
+      }).join("");
+    }
+
+    function appendEvidenceCard(title, count, rows, link = null) {
+      if (!rows.length && !link) return;
+      const node = document.createElement("article");
+      node.className = "evidence-card";
+      node.innerHTML = `<div class="evidence-head"><strong>${escapeHtml(title)}</strong>${count ? `<span>${escapeHtml(count)}</span>` : ""}</div>${rows.length ? `<ul class="evidence-list">${rows.join("")}</ul>` : ""}${link ? `<a class="evidence-link" href="${escapeHtml(link.href)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>` : ""}`;
+      byId("feed").appendChild(node);
+      return node;
+    }
+
+    function beginRuleChange(button) {
+      if (pendingPlan || working) {
+        setComposerStatus("Confirm or cancel the current request first");
+        return;
+      }
+      const ruleId = button.dataset.ruleId || "";
+      const ruleType = button.dataset.ruleType || "placement";
+      const ruleText = button.dataset.ruleText || "this rule";
+      byId("command").value = `Change ${ruleType} rule #${ruleId} (${ruleText}) so `;
+      byId("command").focus();
+      setComposerStatus("Describe what Magpie should remember instead");
+    }
+
+    function proposeForgetRule(button) {
+      if (pendingPlan || working) {
+        setComposerStatus("Confirm or cancel the current request first");
+        return;
+      }
+      const ruleId = Number(button.dataset.ruleId || 0);
+      if (!ruleId) {
+        setComposerStatus("This rule cannot be changed", "error");
+        return;
+      }
+      const ruleType = button.dataset.ruleType || "placement";
+      const ruleText = button.dataset.ruleText || `rule #${ruleId}`;
+      renderPendingPlan(
+        [{tool:"forget_rule", arguments:{rule_id:ruleId, rule_type:ruleType}}],
+        `Forget: ${ruleText}`,
+        null,
+        `Forget ${ruleType} rule #${ruleId}`,
+      );
+    }
+
+    function renderAgentEvidence(trace) {
+      for (const entry of Array.isArray(trace) ? trace : []) {
+        const result = entry?.result;
+        if (!result) continue;
+        if (entry.tool === "list_rules" && typeof result === "object") {
+          const rules = [...(result.placement_rules || []), ...(result.size_rules || [])].slice(0,20);
+          const rows = rules.map((rule) => {
+            const ruleType = rule.rule_type === "size" ? "size" : "placement";
+            const destinationPath = rule.rule_type === "size"
+              ? rule.size_class
+              : (rule.target_path_label || pathLabel({path:rule.target_path, location_id:rule.target_location_id}));
+            const destination = `${destinationPath || ""}${rule.target_archived ? " (archived)" : ""}`;
+            const terms = (rule.trigger_terms || []).join(", ");
+            const actions = rule.id ? `<span class="evidence-actions"><button type="button" data-change-rule data-rule-id="${escapeHtml(rule.id)}" data-rule-type="${escapeHtml(ruleType)}" data-rule-text="${escapeHtml(rule.rule_text || "Storage rule")}">Change</button><button class="danger" type="button" data-forget-rule data-rule-id="${escapeHtml(rule.id)}" data-rule-type="${escapeHtml(ruleType)}" data-rule-text="${escapeHtml(rule.rule_text || "Storage rule")}">Forget</button></span>` : "";
+            return `<li class="evidence-row"><strong>${escapeHtml(rule.rule_text || "Storage rule")}</strong><span class="evidence-meta">${escapeHtml([destination, terms].filter(Boolean).join(" · "))}</span>${actions}</li>`;
+          });
+          const conflicts = Array.isArray(result.conflicts) ? result.conflicts.length : 0;
+          const card = appendEvidenceCard("Learned rules", `${rules.length} rule${rules.length === 1 ? "" : "s"}${conflicts ? ` · ${conflicts} conflict${conflicts === 1 ? "" : "s"}` : ""}`, rows);
+          card?.querySelectorAll("[data-change-rule]").forEach((button) => button.onclick = () => beginRuleChange(button));
+          card?.querySelectorAll("[data-forget-rule]").forEach((button) => button.onclick = () => proposeForgetRule(button));
+        } else if (entry.tool === "explain_location_choice" && typeof result === "object") {
+          const rows = (result.reasons || []).slice(0,8).map((reason) => `<li class="evidence-row"><strong>${escapeHtml(reason)}</strong></li>`);
+          appendEvidenceCard("Why this location", pathLabel(result) || result.location_id || "", rows);
+        } else if (entry.tool === "list_storage_roots" && Array.isArray(result)) {
+          const roots = result.slice(0,20);
+          const rows = roots.map((root) => `<li class="evidence-row"><strong>${escapeHtml(root.label || root.id || "Storage")}</strong><span class="evidence-meta">${escapeHtml(`${root.location_count || 0} locations · ${root.item_count || 0} items`)}</span></li>`);
+          appendEvidenceCard("Storage places", `${roots.length} root${roots.length === 1 ? "" : "s"}`, rows);
+        } else if (entry.tool === "get_location" && typeof result === "object") {
+          const location = result.location || {};
+          const path = MagpieLocationDisplay.pathText(result.path || []);
+          const rows = result.found === false
+            ? [`<li class="evidence-row"><strong>Location not found</strong><span class="evidence-meta">${escapeHtml(result.location_id || "")}</span></li>`]
+            : [`<li class="evidence-row"><strong>${escapeHtml(path || location.label || location.id || "Location")}</strong><span class="evidence-meta">${escapeHtml(`${result.subtree_count || 1} locations · ${(result.contents || []).length} items${result.nearest_lit_location_id ? ` · light ${result.nearest_lit_location_id}` : ""}`)}</span></li>`];
+          appendEvidenceCard("Location", location.type || "", rows);
+        } else if (entry.tool === "preview_label_sheet" && typeof result === "object" && result.found) {
+          const rows = [`<li class="evidence-row"><strong>${escapeHtml(result.label || result.location_id || "Labels")}</strong><span class="evidence-meta">${escapeHtml(`${result.label_count || 0} label${result.label_count === 1 ? "" : "s"}`)}</span></li>`];
+          appendEvidenceCard("Label sheet", "", rows, {href:result.url, label:"Open label sheet"});
+        } else if (entry.tool === "preview_label_batch" && typeof result === "object" && result.found) {
+          const labels = (result.labels || []).slice(0,20);
+          const rows = labels.map((label) => `<li class="evidence-row"><strong>${escapeHtml(label.label || label.location_id || "Location")}</strong><span class="evidence-meta">${escapeHtml(MagpieLocationDisplay.pathText(label.path || []))}</span></li>`);
+          const pdf = labels.length === 1 ? labels[0].pdf_url : "";
+          appendEvidenceCard("Label batch", `${result.label_count || rows.length} labels`, rows, pdf ? {href:pdf, label:"Export PDF"} : null);
+        }
+      }
+    }
+
+    function planItemSize(args) {
+      const dimensions = args?.dimensions || {};
+      const measured = [dimensions.length_mm, dimensions.width_mm, dimensions.height_mm]
+        .map(Number)
+        .filter((value) => value > 0);
+      const parts = [];
+      if (measured.length) parts.push(`${measured.join(" × ")} mm`);
+      if (args?.size_class) parts.push(String(args.size_class));
+      return parts.length ? ` (${parts.join(" · ")})` : "";
+    }
+
+    function planSentence(step) {
+      const args = step?.arguments || {};
+      if (step.tool === "put_item") return `Store ${args.quantity || 1} × ${args.item || "item"}${planItemSize(args)} in ${args.location_id || "location"}`;
+      if (step.tool === "move_item") return `Move ${args.item || `item #${args.item_id || ""}`} to ${args.to_location_id || "location"}`;
+      if (step.tool === "move_container") return `Move ${args.location_id || "location"} to ${args.new_parent_id || "top level"}`;
+      if (step.tool === "create_location") return `Create ${args.type || "location"} ${args.label || ""}${args.parent_id ? ` inside ${args.parent_id}` : ""}`;
+      if (step.tool === "archive_location") return `Archive ${args.location_id || "location"}`;
+      if (step.tool === "restore_location") return `Restore ${args.location_id || "location"}`;
+      if (step.tool === "learn_rule") return `Learn: ${args.rule_text || "placement rule"}`;
+      if (step.tool === "learn_size_rule") return `Learn: ${args.rule_text || "size rule"}`;
+      if (step.tool === "forget_rule") return `Forget ${args.rule_type || "learned"} rule #${args.rule_id || ""}`;
+      if (step.tool === "update_item") return `Update ${args.name || args.item || `item #${args.item_id || ""}`}`;
+      if (step.tool === "print_label") return `Print label for ${args.location_id || "location"}`;
+      return String(step.tool || "Storage change").replaceAll("_", " ");
+    }
+
+    function confirmationRow(presentation, index) {
+      return MagpieConfirmation.row(presentation, index);
+    }
+
+    function confirmationActionLabel(presentation, actionId, fallback) {
+      return MagpieConfirmation.actionLabel(presentation, actionId, fallback);
+    }
+
+    function confirmationExplanation(presentation) {
+      const explanation = MagpieConfirmation.explanation(presentation);
+      if (!explanation) return "";
+      return `<details class="product-confirmation-explanation"><summary>${escapeHtml(explanation.label)}</summary><p>${escapeHtml(explanation.summary)}</p></details>`;
+    }
+
+    function confirmationChangePrompts(presentation) {
+      const prompts = MagpieConfirmation.changePrompts(presentation);
+      if (!prompts.length) return "";
+      return `<div class="product-confirmation-change-prompts" aria-label="Quick changes" hidden>${prompts.map((prompt) => `<button class="secondary" type="button" data-change-id="${escapeHtml(prompt.id)}" data-change-prompt="${escapeHtml(prompt.text)}">${escapeHtml(prompt.label)}</button>`).join("")}</div>`;
+    }
+
+    function confirmationLightLabel(row) {
+      return MagpieConfirmation.lightLabel(row);
+    }
+
+    function planLightRows(plan, presentation = null) {
+      const byLocation = {};
+      let colorIndex = 0;
+      const rows = [];
+      for (const [index, step] of (plan || []).entries()) {
+        if (!["put_item", "move_item"].includes(step.tool)) continue;
+        const args = step.arguments || {};
+        const shared = confirmationRow(presentation, index);
+        const locationId = shared?.destination?.id || args.location_id || args.to_location_id || "";
+        if (!locationId) continue;
+        if (!byLocation[locationId]) {
+          byLocation[locationId] = Array.isArray(shared?.color?.rgb)
+            ? shared.color.rgb
+            : COLORS[colorIndex++ % COLORS.length].rgb;
+        }
+        rows.push({
+          locationId,
+          color:shared && !shared.color ? null : byLocation[locationId],
+          kind:"put_away",
+          name:args.item || "Destination",
+          path:shared?.destination?.label || locationId
+        });
+      }
+      return rows;
+    }
+
+    async function lightPendingPlan(plan, presentation = null) {
+      const planRows = planLightRows(plan, presentation);
+      proposalLights = [];
+      renderLights();
+      const unique = [];
+      const seen = new Set();
+      for (const row of planRows) {
+        if (seen.has(row.locationId)) continue;
+        seen.add(row.locationId);
+        if (row.color) unique.push({location_id:row.locationId, color:row.color});
+      }
+      if (!unique.length) return;
+      try {
+        const result = await api("/locations/light-colors", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({locations:unique, brightness:1, seconds:180})});
+        proposalLights = result.lit
+          ? planRows.filter((row) => row.color).map((row) => ({name:row.name, path:row.path, color:row.color, kind:row.kind, locationId:row.locationId}))
+          : [];
+        renderLights();
+      } catch (error) {
+        proposalLights = [];
+        renderLights();
+        setComposerStatus(friendlyError(error,"Could not light destination"), "error");
+      }
+    }
+
+    function confirmationPhotoEvidence(photoIds = []) {
+      const ids = [...new Set(photoIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+      if (!ids.length) return "";
+      const visible = ids.slice(0,4);
+      const overflow = ids.length - visible.length;
+      const countLabel = `${ids.length} photo${ids.length === 1 ? "" : "s"} attached`;
+      return `<section class="plan-evidence" aria-label="Attached photo evidence"><div class="plan-evidence-copy"><strong>${countLabel}</strong><span>${ids.length === 1 ? "This photo" : "These photos"} will be saved with the inventory change.</span></div><div class="plan-evidence-photos">${visible.map((id) => `<img class="plan-evidence-photo" src="/photos/${encodeURIComponent(id)}" alt="Attached photo evidence" loading="lazy">`).join("")}${overflow ? `<span class="plan-evidence-more" aria-label="${overflow} more attached photo${overflow === 1 ? "" : "s"}">+${overflow}</span>` : ""}</div></section>`;
+    }
+
+    function renderPendingPlan(plan, message, interactionId, command, photoIds = [], presentation = null) {
+      if (!Array.isArray(plan) || !plan.length) return;
+      byId("welcome")?.remove();
+      pendingPlan = plan;
+      pendingCommand = command || "";
+      pendingSourceInteractionId = Number(interactionId || 0) || null;
+      pendingPlanPhotoIds = [...new Set(photoIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+      byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+      const lightRows = planLightRows(plan, presentation);
+      const title = presentation?.title || "Ready to confirm";
+      const copy = presentation?.instruction || message || "";
+      const confirmLabel = confirmationActionLabel(presentation, "confirm", "Confirm");
+      const changeLabel = confirmationActionLabel(presentation, "change", "Change");
+      const cancelLabel = confirmationActionLabel(presentation, "cancel", "Cancel");
+      const explanation = confirmationExplanation(presentation);
+      const changePrompts = confirmationChangePrompts(presentation);
+      const node = document.createElement("article");
+      node.className = "plan-card product-confirmation";
+      node.innerHTML = `<div class="plan-body product-confirmation-body"><div class="plan-title product-confirmation-title">${escapeHtml(title)}</div>${copy ? `<div class="plan-copy product-confirmation-copy">${escapeHtml(copy)}</div>` : ""}<ul class="plan-list product-confirmation-list">${plan.map((step,index) => {
+        const shared = confirmationRow(presentation, index);
+        const light = lightRows.find((row) => row.locationId === (shared?.destination?.id || step.arguments?.location_id || step.arguments?.to_location_id));
+        const swatch = light?.color ? `rgb(${light.color.join(",")})` : "#aab5b1";
+        const path = shared?.destination?.label ? `<span class="plan-path product-confirmation-path">${escapeHtml(shared.destination.label)} · ${escapeHtml(confirmationLightLabel(shared))}</span>` : "";
+        return `<li class="plan-row product-confirmation-row"><span class="swatch product-confirmation-swatch" style="--swatch:${swatch}"></span><span class="plan-row-copy product-confirmation-row-copy"><span>${escapeHtml(shared?.summary || planSentence(step))}</span>${path}</span></li>`;
+      }).join("")}</ul>${confirmationPhotoEvidence(pendingPlanPhotoIds)}${explanation}</div>${changePrompts}<div class="plan-actions product-confirmation-actions"><button type="button" data-confirm>${escapeHtml(confirmLabel)}</button><button class="secondary" type="button" data-change>${escapeHtml(changeLabel)}</button><button class="secondary" type="button" data-cancel>${escapeHtml(cancelLabel)}</button></div>`;
+      byId("feed").appendChild(node);
+      node.querySelector("[data-confirm]").onclick = () => confirmPlan(node);
+      node.querySelector("[data-change]").onclick = () => beginPlanRevision(node);
+      node.querySelectorAll("[data-change-prompt]").forEach((button) => {
+        button.onclick = () => applyPlanRevisionPrompt(
+          button.dataset.changePrompt,
+          button.dataset.changeId,
+          node
+        );
+      });
+      node.querySelector("[data-cancel]").onclick = () => cancelPlan(node);
+      node.scrollIntoView({behavior:"auto", block:"nearest"});
+      revealPendingPlan(node);
+      lightPendingPlan(plan, presentation);
+    }
+
+    async function photoAttachmentRetries() {
+      const db = await openOfflineDb();
+      try {
+        return await new Promise((resolve,reject) => {
+          const read = db.transaction(PHOTO_RETRY_STORE_NAME,"readonly").objectStore(PHOTO_RETRY_STORE_NAME).getAll();
+          read.onsuccess = () => resolve((read.result || [])
+            .filter((entry) => (entry.scope || "local") === offlineQueueScope())
+            .map((entry) => entry.request));
+          read.onerror = () => reject(read.error || new Error("Could not read photo retries"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+
+    async function queuePhotoAttachmentRetry(request) {
+      if (!request) return;
+      const identity = offlineQueueIdentity();
+      const db = await openOfflineDb();
+      try {
+        await new Promise((resolve,reject) => {
+          const transaction = db.transaction(PHOTO_RETRY_STORE_NAME,"readwrite");
+          const key = `${offlineQueueScope()}:${JSON.stringify(request)}`;
+          transaction.objectStore(PHOTO_RETRY_STORE_NAME).put({
+            key,
+            scope:offlineQueueScope(),
+            workspace_id:identity.workspaceId,
+            owner_user_id:identity.userId,
+            request,
+          });
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error("Could not queue photo retry"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+
+    async function removePhotoAttachmentRetry(request) {
+      const db = await openOfflineDb();
+      try {
+        await new Promise((resolve,reject) => {
+          const transaction = db.transaction(PHOTO_RETRY_STORE_NAME,"readwrite");
+          const key = `${offlineQueueScope()}:${JSON.stringify(request)}`;
+          transaction.objectStore(PHOTO_RETRY_STORE_NAME).delete(key);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error("Could not remove photo retry"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+
+    async function retryPhotoAttachmentRequest(request) {
+      return api("/photos/attach-retry", {
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify(request),
+      });
+    }
+
+    async function retryQueuedPhotoAttachments() {
+      const queue = await photoAttachmentRetries();
+      if (!queue.length || !navigator.onLine) return;
+      for (const request of queue) {
+        try {
+          const response = await retryPhotoAttachmentRequest(request);
+          if (response.ok) await removePhotoAttachmentRetry(request);
+          else if (response.photo_attachments?.retry_request) {
+            await removePhotoAttachmentRetry(request);
+            await queuePhotoAttachmentRetry(response.photo_attachments.retry_request);
+          }
+        } catch (_error) {}
+      }
+      if (!(await photoAttachmentRetries()).length) setComposerStatus("Photo attached");
+    }
+
+    function confirmationReceiptHtml(result, fallbackChangeCount, requestedPhotoCount, options = {}) {
+      const receipt = result.receipt || {};
+      const changeCount = Number(receipt.change_count ?? fallbackChangeCount ?? 0);
+      const photos = receipt.photos || {};
+      const uploaded = Number(photos.uploaded ?? requestedPhotoCount ?? 0);
+      const attached = Number(photos.attached || 0);
+      const pending = Number(photos.pending || 0);
+      const focusLocationId = String(receipt.focus_location_id || "");
+      const summary = String(receipt.summary || "").trim();
+      let photoStatus = "";
+      if (pending) {
+        photoStatus = `<div class="receipt-status warning" data-photo-status>Inventory saved. ${pending} photo attachment${pending === 1 ? " is" : "s are"} pending.</div>`;
+      } else if (uploaded && attached) {
+        photoStatus = `<div class="receipt-status" data-photo-status>${uploaded} photo${uploaded === 1 ? "" : "s"} saved with the inventory record.</div>`;
+      } else if (uploaded) {
+        photoStatus = `<div class="receipt-status warning" data-photo-status>${uploaded} photo${uploaded === 1 ? " was" : "s were"} uploaded but not linked.</div>`;
+      }
+      const reviewStatus = receipt.needs_review ? '<div class="receipt-status">Added to the review queue.</div>' : "";
+      const openLocation = focusLocationId
+        ? `<a class="receipt-action" href="/storage?view=places&location=${encodeURIComponent(focusLocationId)}">Open location</a>`
+        : "";
+      const retryPhoto = pending && result.photo_attachments?.retry_request
+        ? '<button class="receipt-action" type="button" data-retry-photo>Retry photo</button>'
+        : "";
+      const undo = options.allowUndo === false
+        ? ""
+        : '<button class="receipt-action" type="button" data-undo>Undo</button>';
+      const actions = `${undo}${openLocation}${retryPhoto}`;
+      const resultSummary = summary || `${changeCount} change${changeCount === 1 ? "" : "s"} applied.`;
+      return `<strong>Saved</strong><span>${escapeHtml(resultSummary)}</span>${photoStatus}${reviewStatus}${actions ? `<div class="receipt-actions">${actions}</div>` : ""}`;
+    }
+
+    async function retryReceiptPhoto(button, status, request) {
+      button.disabled = true;
+      button.textContent = "Retrying";
+      try {
+        const response = await retryPhotoAttachmentRequest(request);
+        if (!response.ok) throw new Error("Photo attachment is still pending");
+        await removePhotoAttachmentRetry(request);
+        status.classList.remove("warning");
+        status.textContent = "Photo saved with the inventory record.";
+        button.remove();
+        setComposerStatus("Photo attached");
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Retry photo";
+        status.textContent = friendlyError(error,"Photo attachment is still pending");
+        setComposerStatus(status.textContent,"error");
+      }
+    }
+
+    function clearPendingPlan() {
+      pendingPlan = null;
+      pendingCommand = "";
+      pendingSourceInteractionId = null;
+      pendingPlanPhotoIds = [];
+      revisingPlan = false;
+      clearCommandInput();
+      syncConversationMode();
+      proposalLights = [];
+      renderLights();
+    }
+
+    function beginPlanRevision(node = null) {
+      if (!pendingPlan || working) return;
+      revisingPlan = true;
+      const prompts = node?.querySelector(".product-confirmation-change-prompts");
+      if (prompts) prompts.hidden = false;
+      clearCommandInput();
+      syncConversationMode();
+      byId("command").focus();
+      setComposerStatus("Tell Magpie what to change");
+    }
+
+    function applyPlanRevisionPrompt(text, changeId = "", node = null) {
+      const correction = String(text || "").trim();
+      if (!correction || !pendingPlan || working) return;
+      if (changeId === "different_place") {
+        openPlanDestinationPicker(node);
+        return;
+      }
+      beginPlanRevision();
+      byId("command").value = correction;
+      submitRevision("mobile");
+    }
+
+    async function loadDestinationTargets() {
+      const data = await api("/locations");
+      destinationTargets = (data.locations || [])
+        .filter((location) => location.active !== false)
+        .map((location) => ({
+          id:location.id,
+          label:location.label || location.id,
+          type:location.type || "place",
+          parent_id:location.parent_id || "",
+          accepts_items:location.accepts_items !== false,
+        }));
+    }
+
+    function destinationPath(locationId) {
+      const path = [];
+      const seen = new Set();
+      let current = destinationTargets.find((location) => location.id === locationId);
+      while (current && !seen.has(current.id)) {
+        path.unshift(current.label);
+        seen.add(current.id);
+        current = current.parent_id
+          ? destinationTargets.find((location) => location.id === current.parent_id)
+          : null;
+      }
+      return path.join(" › ") || locationId;
+    }
+
+    function planPlacementRows() {
+      return (pendingPlan || []).flatMap((step, index) =>
+        ["put_item", "move_item"].includes(step?.tool)
+          ? [{step, index}]
+          : []
+      );
+    }
+
+    function planPlacementDestination(step) {
+      return step?.arguments?.location_id || step?.arguments?.to_location_id || "";
+    }
+
+    function planPlacementLabel(step) {
+      const arguments = step?.arguments || {};
+      return String(
+        arguments.item
+        || (arguments.item_id ? `Item #${arguments.item_id}` : "Proposed item")
+      );
+    }
+
+    function renderPlanDestinationTargets(picker) {
+      const stepIndex = Number(picker.querySelector("[data-plan-destination-step]").value);
+      const currentId = planPlacementDestination(pendingPlan?.[stepIndex]);
+      const query = picker.querySelector("[data-plan-destination-search]").value.trim().toLowerCase();
+      const matches = destinationTargets
+        .filter((location) => location.accepts_items && location.id !== currentId)
+        .map((location) => ({...location, path:destinationPath(location.id)}))
+        .filter((location) => !query || `${location.path} ${location.type}`.toLowerCase().includes(query))
+        .sort((a,b) => a.path.localeCompare(b.path));
+      const visible = matches.slice(0,30);
+      const results = picker.querySelector("[data-plan-destination-results]");
+      results.innerHTML = visible.length
+        ? visible.map((location) => `<button type="button" class="plan-destination-row" data-plan-destination="${escapeHtml(location.id)}"${picker.dataset.busy === "1" ? " disabled" : ""}><strong>${escapeHtml(location.path)}</strong><span>${escapeHtml(location.type)}</span></button>`).join("")
+        : '<div class="muted">No matching destinations.</div>';
+      picker.querySelector("[data-plan-destination-current]").textContent = currentId
+        ? `Currently proposed: ${destinationPath(currentId)}`
+        : "No destination is currently proposed.";
+      picker.querySelector("[data-plan-destination-summary]").textContent = matches.length > visible.length
+        ? `Showing ${visible.length} of ${matches.length}. Search to narrow the list.`
+        : `${matches.length} destination${matches.length === 1 ? "" : "s"}`;
+      results.querySelectorAll("[data-plan-destination]").forEach((button) => {
+        button.onclick = () => revisePlanDestination(
+          stepIndex,
+          button.dataset.planDestination,
+          picker
+        );
+      });
+    }
+
+    async function openPlanDestinationPicker(node = null) {
+      if (!pendingPlan || working) return;
+      const planNode = node || byId("feed").querySelector(".plan-card");
+      const rows = planPlacementRows();
+      if (!planNode || !rows.length) {
+        beginPlanRevision(planNode);
+        return;
+      }
+      planNode.querySelector(".plan-destination-picker")?.remove();
+      try {
+        await loadDestinationTargets();
+      } catch (error) {
+        setComposerStatus(friendlyError(error,"Could not load storage places"), "error");
+        return;
+      }
+      const picker = document.createElement("div");
+      picker.className = "plan-destination-picker";
+      picker.dataset.busy = "0";
+      picker.innerHTML = `<div class="plan-destination-picker-head"><strong>Choose a different destination</strong><span data-plan-destination-current></span></div>
+        ${rows.length > 1 ? `<label>Change destination for<select data-plan-destination-step>${rows.map(({step,index}) => `<option value="${escapeHtml(index)}">${escapeHtml(planPlacementLabel(step))}</option>`).join("")}</select></label>` : `<input type="hidden" data-plan-destination-step value="${escapeHtml(rows[0].index)}">`}
+        <input type="search" data-plan-destination-search aria-label="Find a different destination" placeholder="Garage, cabinet, shelf, bin" autocomplete="off">
+        <div class="plan-destination-results" data-plan-destination-results></div>
+        <div class="plan-destination-summary" data-plan-destination-summary></div>
+        <div class="plan-destination-actions"><button type="button" class="secondary" data-plan-destination-cancel>Keep current</button></div>`;
+      planNode.querySelector(".product-confirmation-actions").before(picker);
+      picker.querySelector("[data-plan-destination-search]").oninput = () => renderPlanDestinationTargets(picker);
+      picker.querySelector("[data-plan-destination-step]").onchange = () => renderPlanDestinationTargets(picker);
+      picker.querySelector("[data-plan-destination-cancel]").onclick = () => {
+        picker.remove();
+        setComposerStatus("Confirmation needed");
+      };
+      renderPlanDestinationTargets(picker);
+      picker.querySelector("[data-plan-destination-search]").focus();
+      setComposerStatus("Choose a destination");
+    }
+
+    async function revisePlanDestination(stepIndex, locationId, picker) {
+      if (!pendingPlan || working || picker.dataset.busy === "1") return;
+      const originalCommand = pendingCommand;
+      const originalPhotoIds = [...pendingPlanPhotoIds];
+      const correction = `Use ${destinationPath(locationId)} as the destination.`;
+      const revisedCommand = `${originalCommand}\n${correction}`.trim();
+      picker.dataset.busy = "1";
+      renderPlanDestinationTargets(picker);
+      setWorking(true);
+      setComposerStatus("Updating the destination");
+      try {
+        const result = normalizeResponse(await api("/assistant/revise", {
+          method:"POST",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({
+            text:correction,
+            source:"mobile",
+            location_id:locationId,
+            step_index:stepIndex,
+          }),
+        }));
+        rememberInteraction(result.interaction_id);
+        if (!result.plan?.length) {
+          throw new Error(result.message || "Magpie could not change that destination.");
+        }
+        clearCommandInput();
+        revisingPlan = false;
+        syncConversationMode();
+        renderPendingPlan(
+          result.plan,
+          result.message || "Updated the destination.",
+          result.interaction_id,
+          revisedCommand,
+          originalPhotoIds,
+          result.confirmation
+        );
+        setComposerStatus("Destination updated");
+      } catch (error) {
+        picker.dataset.busy = "0";
+        renderPlanDestinationTargets(picker);
+        setComposerStatus(friendlyError(error,"Could not change the destination"), "error");
+      } finally {
+        setWorking(false);
+      }
+    }
+
+    async function confirmPlan(node) {
+      if (!pendingPlan || working) return;
+      const button = node.querySelector("[data-confirm]");
+      const sourceInteractionId = Number(pendingSourceInteractionId || 0);
+      if (sourceInteractionId) summarizedConfirmationSources.add(sourceInteractionId);
+      button.disabled = true;
+      button.textContent = "Saving";
+      try {
+        const confirmedPlan = pendingPlan.slice();
+        const requestedPhotoCount = pendingPlanPhotoIds.length;
+        const result = await api("/assistant/confirm", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({
+          plan:confirmedPlan,
+          command:pendingCommand,
+          photo_ids:pendingPlanPhotoIds,
+          source_interaction_id:pendingSourceInteractionId
+        })});
+        const receiptId = Number(result.confirmation_interaction_id || 0);
+        rememberInteraction(receiptId);
+        node.remove();
+        const learnedHome = result.learning_message ? `<span>${escapeHtml(result.learning_message)}</span>` : "";
+        const receipt = appendMessage("agent", `${confirmationReceiptHtml(result, result.applied?.length || confirmedPlan.length, requestedPhotoCount)}${learnedHome}`);
+        receipt.querySelector("[data-undo]").onclick = (event) => undoLatest(event.currentTarget);
+        const retryRequest = result.photo_attachments?.retry_request;
+        const retryButton = receipt.querySelector("[data-retry-photo]");
+        if (retryRequest && retryButton) {
+          await queuePhotoAttachmentRetry(retryRequest);
+          retryButton.onclick = () => retryReceiptPhoto(retryButton, receipt.querySelector("[data-photo-status]"), retryRequest);
+          retryQueuedPhotoAttachments();
+        }
+        clearPendingPlan();
+        pendingPhotos = [];
+        renderPhotos();
+        await loadReviewQueue();
+        setComposerStatus("Saved");
+        await retryOfflineRequests();
+      } catch (error) {
+        if (sourceInteractionId) summarizedConfirmationSources.delete(sourceInteractionId);
+        button.disabled = false;
+        button.textContent = "Confirm";
+        setComposerStatus(friendlyError(error,"Could not save"), "error");
+      }
+    }
+
+    async function cancelPlan(node) {
+      const request = {command:pendingCommand, photo_ids:pendingPlanPhotoIds, source_interaction_id:pendingSourceInteractionId};
+      node.remove();
+      clearPendingPlan();
+      keepPhotoEvidence(request.photo_ids);
+      setComposerStatus(request.photo_ids.length ? "Canceled · photo kept" : "Canceled");
+      if (!request.source_interaction_id) return;
+      try {
+        const result = await api("/assistant/cancel", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(request)});
+        rememberInteraction(result.cancellation_interaction_id);
+        if (Array.isArray(result.active_finds)) {
+          activeFinds = result.active_finds;
+          renderLights();
+        }
+      } catch (error) {
+        setComposerStatus(friendlyError(error,"Could not cancel"), "error");
+      }
+    }
+
+    function rememberInteraction(interactionId) {
+      const id = Number(interactionId || 0);
+      if (!id) return;
+      seenInteractions.add(id);
+    }
+
+    async function undoLatest(button) {
+      if (working) return;
+      button.disabled = true;
+      button.textContent = "Undoing";
+      try {
+        const result = await api("/assistant/undo", {method:"POST"});
+        rememberInteraction(result.undo_interaction_id);
+        if (!result.ok) throw new Error(result.message || "There is nothing to undo.");
+        button.remove();
+        appendMessage("agent", escapeHtml(result.message || "Undone."));
+        setComposerStatus("Undone");
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Undo";
+        setComposerStatus(friendlyError(error,"Could not undo"), "error");
+      }
+    }
+
+    function normalizeResponse(response) {
+      if (response?.raw && typeof response.raw === "object") return {...response.raw, message:response.message || response.raw.message, interaction_id:response.interaction_id || response.raw.interaction_id};
+      if (response?.decision && typeof response.decision === "object") return {...response.decision, message:response.message || response.decision.message, interaction_id:response.interaction_id || response.decision.interaction_id};
+      return response || {};
+    }
+
+    function locationChoiceRows(candidates) {
+      return (candidates || []).filter((candidate) => candidate.selection_command).map((candidate) => {
+        const label = pathLabel(candidate) || candidate.label || candidate.id || "Storage location";
+        return `<button type="button" class="location-choice" data-location-command="${escapeHtml(candidate.selection_command)}">${escapeHtml(label)}</button>`;
+      }).join("");
+    }
+
+    function bindLocationChoices(node) {
+      node.querySelectorAll("[data-location-command]").forEach((button) => {
+        button.onclick = async () => {
+          if (working) return;
+          byId("command").value = button.dataset.locationCommand;
+          await submit();
+        };
+      });
+    }
+
+    function keepPhotoEvidence(photoIds = []) {
+      const known = new Set(pendingPhotos.map((photo) => Number(photo.id)));
+      for (const photoId of photoIds) {
+        const id = Number(photoId);
+        if (!id || known.has(id)) continue;
+        pendingPhotos.push({id});
+        known.add(id);
+      }
+      pendingPhotoPayloads = [];
+      resumedOfflinePhotoIds = [];
+      resumedOfflinePhotoPayloads = [];
+      renderPhotos();
+    }
+
+    function clearPhotoEvidence() {
+      pendingPhotos = [];
+      pendingPhotoPayloads = [];
+      resumedOfflinePhotoIds = [];
+      resumedOfflinePhotoPayloads = [];
+      renderPhotos();
+    }
+
+    function renderResponse(response, command, photoIds = []) {
+      const result = normalizeResponse(response);
+      const interactionId = Number(result.interaction_id || 0);
+      rememberInteraction(interactionId);
+      renderAgentEvidence(result.trace);
+      if (result.action === "setup_complete") setConversationMode("");
+      if (result.plan?.length) {
+        setConversationMode("");
+        renderPendingPlan(result.plan, result.message, interactionId, command, photoIds, result.confirmation);
+        pendingPhotos = [];
+        pendingPhotoPayloads = [];
+        resumedOfflinePhotoIds = [];
+        resumedOfflinePhotoPayloads = [];
+        renderPhotos();
+        setComposerStatus("Confirmation needed");
+        return;
+      }
+      const placeHandoffUrl = result.places_url || result.storage_url || "";
+      if (["place_configuration_ui_required", "voice_scope_ui_required"].includes(result.action) && placeHandoffUrl) {
+        appendMessage(
+          "agent",
+          `${escapeHtml(result.message || "Use Places to manage storage.")}<div class="receipt-actions"><a class="receipt-action" href="${escapeHtml(placeHandoffUrl)}">Open Places</a></div>`,
+        );
+        clearPhotoEvidence();
+        setComposerStatus(result.action === "place_configuration_ui_required" ? "Destination needed" : "Use Places");
+        return;
+      }
+      if (result.action === "found" || result.results?.length) {
+        const rows = resultRows(result.results || [], result.light_assignments || []);
+        appendMessage("agent", `<strong>${escapeHtml(result.message || "Found")}</strong>${rows ? `<ul class="result-list">${rows}</ul>` : ""}`);
+        if (Array.isArray(result.active_finds)) {
+          activeFinds = result.active_finds;
+          renderLights();
+        }
+        clearPhotoEvidence();
+        setComposerStatus("Done");
+      } else {
+        const choices = locationChoiceRows(result.location_candidates);
+        const node = appendMessage(
+          result.ok === false ? "system" : "agent",
+          `${escapeHtml(result.message || "Done.")}${choices ? `<div class="location-choices">${choices}</div>` : ""}`
+        );
+        bindLocationChoices(node);
+        if (photoIds.length) {
+          keepPhotoEvidence(photoIds);
+          setComposerStatus("Photo kept for next request");
+        } else {
+          clearPhotoEvidence();
+          setComposerStatus("Done");
+        }
+      }
+    }
+
+    function actionCommand(action, text) {
+      const clean = text.trim();
+      if (action === "find") return clean ? (/^(?:finds?|fine|where(?:'s| is| are)?|show me|locate|get me|grab(?: me)?|i need)\b/i.test(clean) ? clean : `Find ${clean}`) : "";
+      if (action === "put-away") return clean ? (/^(?:put away|put|store|stash|stow|file)\b/i.test(clean) ? clean : `Put away ${clean}`) : "";
+      if (action === "sort-photo") return clean || "Sort this photo and suggest where each item should go";
+      if (action === "learn-rule") return clean;
+      if (action === "rules") return clean ? `What storage rules do you know about ${clean}?` : "What storage rules have you learned?";
+      return clean || (pendingPhotos.length || pendingPhotoPayloads.length || resumedOfflinePhotoPayloads.length ? "Identify these items and suggest where they should go" : "");
+    }
+
+    function routeBrowserVoiceCommand(text) {
+      const clean = text.trim();
+      if (!clean) return null;
+      if (pendingPlan) {
+        if (/^(?:confirm|apply|yes|yep|yeah|sure|do it|looks good)[.!]?$/i.test(clean)) {
+          return {action:"confirm", command:clean};
+        }
+        if (/^(?:cancel|no|nope|never mind|nevermind|stop)[.!]?$/i.test(clean)) {
+          return {action:"cancel", command:clean};
+        }
+        if (/^(?:no[,.]?\s+|actually\s+|instead\s+|use\s+|put (?:it|them)\s+|(?:the )?(?:bigger|smaller|larger|large|medium|small)\b)/i.test(clean)) {
+          return {action:"revise", command:clean};
+        }
+      }
+      if (/^(?:finds?|fine|where(?:'s| is| are)?|show me|locate|get me|grab(?: me)?|i need)\b/i.test(clean)) {
+        return {action:"find", command:clean};
+      }
+      if (/^(?:not here|missing|.+\s+(?:(?:is|are)\s+(?:not here|missing)|(?:isn't|aren't)\s+here))[.!]?$/i.test(clean)) {
+        return {action:"not-here", command:clean};
+      }
+      if (/^(?:put away|put|store|file|stash|stow)\b/i.test(clean)) {
+        return {action:"put-away", command:clean};
+      }
+      const demonstrativeMove = clean.match(
+        /^(?:(?:let(?:'s| us)|please|can you|could you)\s+)?(?:move|relocate)\s+(?:this|that|these|those)\s+(.+)$/i
+      );
+      if (demonstrativeMove) {
+        return {action:"put-away", command:`Put away ${demonstrativeMove[1]}`};
+      }
+      if (["find","put-away"].includes(conversationMode)) {
+        return {action:conversationMode, command:clean};
+      }
+      return null;
+    }
+
+    function voiceCommandSupported(text) {
+      return Boolean(routeBrowserVoiceCommand(text));
+    }
+
+    async function applyBrowserVoiceCommand(routed) {
+      const planNode = byId("feed").querySelector(".plan-card");
+      if (routed.action === "confirm" && planNode) {
+        setComposerStatus("Confirming");
+        await confirmPlan(planNode);
+        return;
+      }
+      if (routed.action === "cancel" && planNode) {
+        setComposerStatus("Canceling");
+        await cancelPlan(planNode);
+        return;
+      }
+      if (routed.action === "revise" && pendingPlan) {
+        beginPlanRevision();
+        byId("command").value = routed.command;
+        await submitRevision("voice");
+        return;
+      }
+      byId("command").value = routed.command;
+      pendingInputSource = "voice";
+      await submit(routed.action);
+    }
+
+    function quickActionPrompt(action) {
+      if (action === "find") return "What should Magpie find?";
+      if (action === "learn-rule") return "Describe a storage rule";
+      return currentLocationId ? "Ready to put away here" : "What are you putting away?";
+    }
+
+    function quickActionPlaceholder(action) {
+      if (action === "find") return "What should Magpie find?";
+      if (action === "put-away") return "What are you putting away?";
+      if (action === "learn-rule") return "Describe the rule Magpie should remember";
+      return "Ask Magpie";
+    }
+
+    function syncConversationMode() {
+      byId("command").placeholder = revisingPlan
+        ? "What should Magpie change?"
+        : quickActionPlaceholder(conversationMode);
+      document.querySelectorAll("[data-mode-action]").forEach((button) => {
+        const active = button.dataset.action === conversationMode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+    }
+
+    function setConversationMode(action = "") {
+      conversationMode = String(action || "");
+      syncConversationMode();
+      renderLocationContext();
+    }
+
+    async function submit(action = "") {
+      if (working) return;
+      const requestSource = pendingInputSource;
+      pendingInputSource = "mobile";
+      if (action && action !== conversationMode) resumedOfflinePhotoIds = [];
+      if (!action && revisingPlan) {
+        await submitRevision();
+        return;
+      }
+      if (action && revisingPlan) {
+        revisingPlan = false;
+        syncConversationMode();
+      }
+      if (action) setConversationMode("");
+      const requestAction = action || conversationMode;
+      const command = actionCommand(requestAction, byId("command").value);
+      if (!command) {
+        byId("command").focus();
+        setComposerStatus("Enter a request");
+        return;
+      }
+      if (["find","put-away","learn-rule"].includes(requestAction)) setConversationMode("");
+      const photoIds = [...new Set([...resumedOfflinePhotoIds,...pendingPhotos.map((photo) => Number(photo.id))])];
+      const photoPayloads = [...resumedOfflinePhotoPayloads,...pendingPhotoPayloads];
+      const photoCount = photoIds.length + photoPayloads.length;
+      const clientRequestId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      appendMessage(
+        "user",
+        `${escapeHtml(command)}${photoCount ? `<div class="message-meta">${photoCount} photo${photoCount === 1 ? "" : "s"}</div>` : ""}`,
+        {clientRequestId},
+      );
+      clearCommandInput();
+      setWorking(true);
+      setComposerStatus("Magpie is working");
+      const requestMode = "auto";
+      const destinationLocked = Boolean(
+        currentLocationId && new URLSearchParams(location.search).get("resume")
+      );
+      let queuedOffline = false;
+      try {
+        while (pendingPhotoPayloads.length) {
+          const photo = await uploadPhotoPayload(pendingPhotoPayloads[0]);
+          pendingPhotos.push(photo);
+          pendingPhotoPayloads.shift();
+          photoIds.push(Number(photo.id));
+          renderPhotos();
+        }
+        while (resumedOfflinePhotoPayloads.length) {
+          const photo = await uploadPhotoPayload(resumedOfflinePhotoPayloads[0]);
+          resumedOfflinePhotoPayloads.shift();
+          photoIds.push(Number(photo.id));
+        }
+        const response = await api("/assistant/chat", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({text:command, photo_ids:photoIds, current_location_id:currentLocationId || null, destination_locked:destinationLocked, mode:requestMode, source:requestSource, client_request_id:clientRequestId})});
+        resumedOfflinePhotoIds = [];
+        resumedOfflinePhotoPayloads = [];
+        renderResponse(response, command, photoIds);
+        consumeLaunchParams();
+      } catch (error) {
+        const message = friendlyError(error);
+        if (!error.status && offlineMutationEligible(requestAction,command)) {
+          try {
+            await queueOfflineMutation({id:clientRequestId, command, action:requestAction, mode:requestMode, source:requestSource, photoIds, photoPayloads:[...resumedOfflinePhotoPayloads,...pendingPhotoPayloads], destinationLocked});
+            resumedOfflinePhotoIds = [];
+            resumedOfflinePhotoPayloads = [];
+            queuedOffline = true;
+            markClientRequestMessage(clientRequestId, "Saved offline");
+            pendingPhotos = [];
+            pendingPhotoPayloads = [];
+            renderPhotos();
+            appendMessage("system", "Saved offline. Magpie will prepare it when the connection returns; you will still confirm before anything changes.");
+            setComposerStatus("Saved offline");
+            consumeLaunchParams();
+          } catch (queueError) {
+            const queueMessage = friendlyError(queueError,"Could not save this request offline");
+            appendMessage("system", escapeHtml(queueMessage));
+            setComposerStatus(queueMessage,"error");
+          }
+        } else {
+          if (!appendRequestFailure(error, message, command)) {
+            appendMessage("system", escapeHtml(message));
+          }
+          setComposerStatus(message,"error");
+        }
+      } finally {
+        setWorking(false);
+        renderOfflineQueue(
+          queuedOffline
+            ? "Waiting for a connection"
+            : ""
+        );
+      }
+    }
+
+    async function submitRevision(source = "mobile") {
+      const followup = byId("command").value.trim();
+      if (!pendingPlan || !followup || working) {
+        if (!followup) setComposerStatus("Describe the change");
+        return;
+      }
+      const originalCommand = pendingCommand;
+      const originalPhotoIds = [...pendingPlanPhotoIds];
+      const revisedCommand = `${originalCommand}\n${followup}`.trim();
+      appendMessage("user", escapeHtml(followup));
+      setWorking(true);
+      setComposerStatus("Magpie is revising the plan");
+      try {
+        const response = await api("/assistant/revise", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({text:followup, source})});
+        const result = normalizeResponse(response);
+        rememberInteraction(result.interaction_id);
+        if (result.plan?.length) {
+          clearCommandInput();
+          revisingPlan = false;
+          syncConversationMode();
+          renderPendingPlan(result.plan, result.message || "Updated proposal.", result.interaction_id, revisedCommand, originalPhotoIds, result.confirmation);
+          setComposerStatus("Confirmation needed");
+          return;
+        }
+        appendMessage(result.ok === false ? "system" : "agent", escapeHtml(result.message || "The original proposal is still pending."));
+        clearCommandInput();
+        revisingPlan = false;
+        syncConversationMode();
+        setComposerStatus("Original plan still needs confirmation");
+      } catch (error) {
+        const message = friendlyError(error,"Could not revise the plan");
+        appendMessage("system", escapeHtml(`${message} The original proposal is still pending.`));
+        setComposerStatus(message, "error");
+      } finally {
+        setWorking(false);
+      }
+    }
+
+    async function photoPayload(file) {
+      const prepared = await window.magpiePhotos.prepare(file);
+      return {
+        local_id:globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        filename:prepared.filename,
+        content_type:prepared.contentType,
+        data_base64:prepared.dataUrl
+      };
+    }
+
+    async function uploadPhotoPayload(payload) {
+      const result = await api("/photos", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({
+        filename:payload.filename,
+        content_type:payload.content_type,
+        data_base64:payload.data_base64
+      })});
+      return result.photo;
+    }
+
+    async function uploadPhotos(files) {
+      const selected = [...files].slice(0,4);
+      if (!selected.length) return;
+      setComposerStatus(`Uploading ${selected.length} photo${selected.length === 1 ? "" : "s"}`);
+      byId("photoButton").disabled = true;
+      try {
+        for (const file of selected) {
+          const payload = await photoPayload(file);
+          try {
+            pendingPhotos.push(await uploadPhotoPayload(payload));
+          } catch (error) {
+            if (error.status) throw error;
+            const localBytes = [...pendingPhotoPayloads,payload].reduce((total,item) => total + photoPayloadBytes(item),0);
+            if (localBytes > OFFLINE_PHOTO_BYTES_LIMIT) throw new Error("This photo exceeds the offline photo limit.");
+            pendingPhotoPayloads.push(payload);
+          }
+          renderPhotos();
+        }
+        setComposerStatus(pendingPhotoPayloads.length ? "Photo saved on this device" : "Photo ready");
+        if (photoIntent === "sort-photo") await submit("sort-photo");
+      } catch (error) {
+        setComposerStatus(friendlyError(error,"Photo upload failed"), "error");
+      } finally {
+        photoIntent = "";
+        byId("photoButton").disabled = false;
+        byId("photoInput").value = "";
+      }
+    }
+
+    function renderPhotos() {
+      const list = byId("photoList");
+      const localPayloads = [...resumedOfflinePhotoPayloads,...pendingPhotoPayloads];
+      list.hidden = pendingPhotos.length === 0 && localPayloads.length === 0;
+      list.innerHTML = pendingPhotos.map((photo,index) => `<div class="photo"><img src="/photos/${encodeURIComponent(photo.id)}" alt="Attached photo"><button type="button" data-remove-photo="${index}" aria-label="Remove photo">×</button></div>`).join("")
+        + localPayloads.map((payload,index) => `<div class="photo"><img src="${escapeHtml(payload.data_base64)}" alt="Photo saved on this device"><button type="button" data-remove-local-photo="${index}" aria-label="Remove photo">×</button></div>`).join("");
+      list.querySelectorAll("[data-remove-photo]").forEach((button) => {
+        button.onclick = () => removePendingPhoto(Number(button.dataset.removePhoto));
+      });
+      list.querySelectorAll("[data-remove-local-photo]").forEach((button) => {
+        button.onclick = () => {
+          const index = Number(button.dataset.removeLocalPhoto);
+          if (index < resumedOfflinePhotoPayloads.length) resumedOfflinePhotoPayloads.splice(index,1);
+          else pendingPhotoPayloads.splice(index - resumedOfflinePhotoPayloads.length,1);
+          renderPhotos();
+        };
+      });
+      updateDockSpace();
+    }
+
+    async function removePendingPhoto(index) {
+      const photo = pendingPhotos[index];
+      if (!photo) return;
+      document.querySelectorAll(`[data-remove-photo="${index}"]`).forEach((button) => {
+        button.disabled = true;
+      });
+      setComposerStatus("Removing photo");
+      try {
+        await api(`/photos/${encodeURIComponent(photo.id)}`, {method:"DELETE"});
+        const currentIndex = pendingPhotos.findIndex((candidate) => Number(candidate.id) === Number(photo.id));
+        if (currentIndex >= 0) pendingPhotos.splice(currentIndex,1);
+        renderPhotos();
+        setComposerStatus("Photo removed");
+      } catch (error) {
+        renderPhotos();
+        setComposerStatus(friendlyError(error,"Could not remove photo"), "error");
+      }
+    }
+
+    function interactionMessage(interaction) {
+      const route = String(interaction.route || "");
+      if (!route.startsWith("/assistant/") && !route.includes("quick-put")) return;
+      const response = normalizeResponse(interaction.response || {});
+      if (interaction.status === "confirmed") loadReviewQueue();
+      if (
+        interaction.status === "confirmed"
+        && response.confirmed_plan?.length
+        && response.confirmation_response
+      ) {
+        const confirmation = normalizeResponse(response.confirmation_response);
+        const confirmationId = Number(confirmation.confirmation_interaction_id || 0);
+        if (confirmationId) summarizedConfirmationInteractions.add(confirmationId);
+        if (summarizedConfirmationSources.has(Number(interaction.id || 0))) return;
+        summarizedConfirmationSources.add(Number(interaction.id || 0));
+        appendInteractionUser(interaction, response);
+        appendMessage(
+          "agent",
+          confirmationReceiptHtml(
+            confirmation,
+            confirmation.applied?.length || response.confirmed_plan.length,
+            (interaction.photo_ids || []).length,
+            {allowUndo:false},
+          ),
+          {interactionId:interaction.id},
+        );
+        return;
+      }
+      if (interaction.status === "canceled" || ["/assistant/cancel","/assistant/voice/cancel"].includes(route)) {
+        const canceledSourceId = Number(response.source_interaction_id || 0);
+        if (pendingPlan && canceledSourceId && canceledSourceId === pendingSourceInteractionId) {
+          byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+          clearPendingPlan();
+          setComposerStatus("Canceled");
+        }
+        return;
+      }
+      if (
+        ["superseded","expired","undone","confirmation_failed"].includes(interaction.status)
+        && response.plan?.length
+      ) {
+        if (
+          pendingPlan
+          && Number(interaction.id || 0) === Number(pendingSourceInteractionId || 0)
+        ) {
+          byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+          clearPendingPlan();
+          setComposerStatus("Proposal expired");
+          appendMessage("agent", "That storage proposal expired or was replaced. Ask Magpie again to review the current plan.");
+        }
+        return;
+      }
+      if (interaction.status === "pending" && response.plan?.length) {
+        appendInteractionUser(interaction, response);
+        renderPendingPlan(response.plan, response.message, interaction.id, interaction.command, interaction.photo_ids || [], response.confirmation);
+        return;
+      }
+      if (
+        ["/assistant/confirm","/assistant/voice/confirm"].includes(route)
+        && (
+          summarizedConfirmationInteractions.has(Number(interaction.id || 0))
+          || summarizedConfirmationSources.has(Number(response.source_interaction_id || 0))
+        )
+      ) return;
+      if (
+        ["/assistant/confirm","/assistant/voice/confirm"].includes(route)
+        && pendingPlan
+        && String(interaction.command || "") === pendingCommand
+      ) {
+        byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+        appendMessage(
+          "agent",
+          confirmationReceiptHtml(
+            response,
+            response.applied?.length || pendingPlan.length,
+            (interaction.photo_ids || []).length,
+            {allowUndo:false},
+          ),
+          {interactionId:interaction.id},
+        );
+        clearPendingPlan();
+        setComposerStatus("Saved");
+        return;
+      }
+      if (route.includes("quick-put")) {
+        const item = response.item?.name || interaction.command || "Item";
+        const originalDestination = MagpieLocationDisplay.pathText(
+          response.destination?.path || [],
+          [],
+          " › ",
+        ) || response.destination?.label || "";
+        const itemId = Number(response.item?.item_id || response.item_id || 0);
+        const currentItem = (interaction.current_items || []).find(
+          (candidate) => Number(candidate.item_id || 0) === itemId
+        );
+        const currentPlacements = (currentItem?.placements || [])
+          .map((placement) => placement.path_label || MagpieLocationDisplay.pathText(placement.path || [], [], " › "))
+          .filter(Boolean);
+        const destination = currentItem
+          ? currentPlacements.join(", ")
+          : originalDestination;
+        const movedSince = Boolean(
+          currentItem
+          && currentPlacements.length
+          && originalDestination
+          && !currentPlacements.includes(originalDestination)
+        );
+        const photoCount = (interaction.photo_ids || []).length;
+        const details = [
+          movedSince
+            ? `Currently in ${destination} · Originally stored in ${originalDestination}`
+            : destination
+              ? `Stored in ${destination}`
+              : currentItem && !currentItem.active
+                ? "No active inventory placement"
+                : (response.message || "Stored"),
+          photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"} attached` : "",
+        ].filter(Boolean).join(" · ");
+        appendMessage(
+          response.ok === false ? "system" : "agent",
+          `<strong>${escapeHtml(item)}</strong><div class="message-meta">${escapeHtml(details)}</div>`,
+          {interactionId:interaction.id},
+        );
+        return;
+      }
+      if (!["/assistant/confirm","/assistant/cancel","/assistant/voice/confirm","/assistant/voice/cancel"].includes(route)) {
+        appendInteractionUser(interaction, response);
+      }
+      const result = normalizeResponse(response);
+      const rawText = result.message || (interaction.status === "confirmed" ? "Saved." : interaction.status === "canceled" ? "Canceled." : "Request complete.");
+      const text = friendlyError({message:rawText},rawText);
+      const rows = result.results?.length ? `<ul class="result-list">${resultRows(result.results,result.light_assignments || [])}</ul>` : "";
+      const placeHandoffUrl = result.places_url || result.storage_url || "";
+      const placeHandoff = ["place_configuration_ui_required", "voice_scope_ui_required"].includes(result.action) && placeHandoffUrl
+        ? `<div class="receipt-actions"><a class="receipt-action" href="${escapeHtml(placeHandoffUrl)}">Open Places</a></div>`
+        : "";
+      if (result.ok === false && String(result.action || "").startsWith("model_")) {
+        appendRequestFailure(
+          {action:result.action, interactionId:interaction.id},
+          text,
+          interaction.command || "",
+        );
+        return;
+      }
+      appendMessage(result.ok === false ? "system" : "agent", `${escapeHtml(text)}${rows}${placeHandoff}`, {interactionId:interaction.id});
+    }
+
+    function renderInteractions(interactions) {
+      for (const interaction of interactions || []) {
+        const id = Number(interaction.id || 0);
+        latestInteractionId = Math.max(latestInteractionId,id);
+        if (!id || seenInteractions.has(id)) continue;
+        seenInteractions.add(id);
+        interactionMessage(interaction);
+      }
+    }
+
+    function syncAuthoritativePending(interaction, confirmationState = null) {
+      const authoritativeId = Number(interaction?.id || 0);
+      if (
+        pendingPlan
+        && authoritativeId
+        && authoritativeId === Number(pendingSourceInteractionId || 0)
+      ) return;
+      if (authoritativeId) {
+        byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+        const response = normalizeResponse(interaction.response || {});
+        if (response.plan?.length) {
+          renderPendingPlan(
+            response.plan,
+            response.message,
+            authoritativeId,
+            interaction.command,
+            interaction.photo_ids || [],
+            response.confirmation,
+          );
+          setComposerStatus("Confirmation needed");
+          return;
+        }
+      }
+      if (!pendingPlan) return;
+      const localId = Number(pendingSourceInteractionId || 0);
+      if (
+        !localId
+        || Number(confirmationState?.interaction_id || 0) !== localId
+      ) return;
+      const status = String(confirmationState?.status || "unknown");
+      if (
+        ["pending", "confirming", "unknown"].includes(status)
+        && !Number(confirmationState?.replaced_by_interaction_id || 0)
+      ) return;
+      byId("feed").querySelectorAll(".plan-card").forEach((node) => node.remove());
+      clearPendingPlan();
+      if (status === "confirmed") {
+        setComposerStatus("Saved");
+      } else if (status === "canceled") {
+        setComposerStatus("Canceled");
+      } else {
+        setComposerStatus("Proposal expired");
+        appendMessage("agent", "That storage proposal expired or was replaced. Ask Magpie again to review the current plan.");
+      }
+    }
+
+    async function initializeInteractionCursor() {
+      try {
+        const data = await api("/assistant/interactions?limit=1");
+        const interactions = data.interactions || [];
+        const latest = interactions[interactions.length - 1];
+        latestInteractionId = Math.max(
+          latestInteractionId,
+          Number(latest?.id || 0),
+        );
+      } catch (error) {
+        // The live state channel will recover when the service is reachable.
+      }
+    }
+
+    async function pollState() {
+      while (running) {
+        if (document.visibilityState === "hidden") {
+          await new Promise((resolve) => document.addEventListener("visibilitychange",resolve,{once:true}));
+          continue;
+        }
+        const started = Date.now();
+        try {
+          const query = new URLSearchParams({after_id:String(latestInteractionId), confirmation_interaction_id:String(pendingSourceInteractionId || 0), voice_updated_at:String(lastVoiceUpdatedAt), wait_seconds:"20"});
+          const state = await api(`/kiosk/state?${query}`);
+          const voice = state.voice || {};
+          lastVoiceUpdatedAt = Number(voice.updated_at || 0);
+          activeFinds = voice.active_finds || [];
+          renderLights();
+          renderInteractions(state.interactions || []);
+          syncAuthoritativePending(
+            state.pending_agent_plan || state.pending_confirmation || null,
+            state.confirmation_state || null,
+          );
+          setConnection(true,"Connected");
+          const elapsed = Date.now() - started;
+          if (elapsed < 250) await new Promise((resolve) => setTimeout(resolve,250-elapsed));
+        } catch (error) {
+          setConnection(false,"Reconnecting");
+          await new Promise((resolve) => setTimeout(resolve,1500));
+        }
+      }
+    }
+
+    function setupSpeech() {
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition) {
+        byId("micButton").disabled = true;
+        byId("micButton").title = "Voice input unavailable";
+        return;
+      }
+      const recognition = new Recognition();
+      recognition.lang = navigator.language || "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onstart = () => {
+        byId("micButton").textContent = "Listening";
+        setComposerStatus("Listening for a find or put-away");
+      };
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        const routed = routeBrowserVoiceCommand(transcript);
+        if (!routed) {
+          byId("command").value = transcript;
+          appendMessage("agent", 'Voice is for finding and putting away items. Use Places for storage changes.<div class="receipt-actions"><a class="receipt-action" href="/storage?view=places">Open Places</a></div>');
+          setComposerStatus("Voice handles find, put-away, and their confirmations. Type other requests or open Storage.","error");
+          byId("command").focus();
+          return;
+        }
+        applyBrowserVoiceCommand(routed).catch((error) => {
+          setComposerStatus(friendlyError(error,"Voice command failed"),"error");
+        });
+      };
+      recognition.onerror = (event) => setComposerStatus(event.error === "not-allowed" ? "Microphone permission denied" : "Voice input failed","error");
+      recognition.onend = () => { byId("micButton").textContent = "Mic"; };
+      byId("micButton").onclick = () => recognition.start();
+    }
+
+    function stopScanner() {
+      cancelAnimationFrame(scannerFrame);
+      scannerFrame = 0;
+      scannerStream?.getTracks().forEach((track) => track.stop());
+      scannerStream = null;
+      byId("scannerVideo").srcObject = null;
+      byId("scannerDialog").close();
+    }
+
+    function magpieScanDestination(raw) {
+      if (!raw) return "";
+      try {
+        const url = new URL(String(raw), location.origin);
+        if (!/^\/((scan\/[^/]+\/[li]\/[^/]+)|[li]\/[^/]+)$/.test(url.pathname)) return "";
+        return new URL(`${url.pathname}${url.search}${url.hash}`, location.origin).href;
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function qrScannerAvailable() {
+      return Boolean(
+        navigator.mediaDevices?.getUserMedia
+        && ("BarcodeDetector" in window || typeof window.jsQR === "function")
+      );
+    }
+
+    function scannerStartupError(error) {
+      if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+        return "Camera permission denied";
+      }
+      if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") {
+        return "No usable camera found";
+      }
+      if (String(error?.message || "").includes("decoder unavailable")) {
+        return "QR decoder unavailable";
+      }
+      return "Could not start camera";
+    }
+
+    async function decodeQrFrame(video, detector) {
+      if (detector) {
+        const codes = await detector.detect(video);
+        return String(codes[0]?.rawValue || "");
+      }
+      if (typeof window.jsQR !== "function" || !video.videoWidth || !video.videoHeight) return "";
+      const scale = Math.min(1, 640 / video.videoWidth);
+      const width = Math.max(1, Math.round(video.videoWidth * scale));
+      const height = Math.max(1, Math.round(video.videoHeight * scale));
+      scannerCanvas ||= document.createElement("canvas");
+      scannerContext ||= scannerCanvas.getContext("2d", {willReadFrequently:true});
+      scannerCanvas.width = width;
+      scannerCanvas.height = height;
+      scannerContext.drawImage(video, 0, 0, width, height);
+      const frame = scannerContext.getImageData(0, 0, width, height);
+      return String(window.jsQR(frame.data, width, height, {inversionAttempts:"attemptBoth"})?.data || "");
+    }
+
+    async function startScanner() {
+      if (!qrScannerAvailable()) {
+        setComposerStatus("QR scanning is unavailable in this browser","error");
+        return;
+      }
+      byId("scannerDialog").showModal();
+      byId("scannerStatus").textContent = "Starting camera";
+      try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+        const video = byId("scannerVideo");
+        video.srcObject = scannerStream;
+        await video.play();
+        let detector = null;
+        if ("BarcodeDetector" in window) {
+          try { detector = new BarcodeDetector({formats:["qr_code"]}); } catch (error) { detector = null; }
+        }
+        if (!detector && typeof window.jsQR !== "function") throw new Error("QR decoder unavailable");
+        scannerLastDecode = 0;
+        byId("scannerStatus").textContent = "Looking for Magpie label";
+        const scan = async (now) => {
+          if (!scannerStream) return;
+          if (now - scannerLastDecode < 120) {
+            scannerFrame = requestAnimationFrame(scan);
+            return;
+          }
+          scannerLastDecode = now;
+          try {
+            const raw = await decodeQrFrame(video, detector);
+            if (raw) {
+              const destination = magpieScanDestination(raw);
+              if (destination) {
+                stopScanner();
+                location.href = destination;
+                return;
+              }
+              byId("scannerStatus").textContent = "Not a Magpie label";
+            }
+          } catch (error) {
+            byId("scannerStatus").textContent = "Hold label steady";
+          }
+          scannerFrame = requestAnimationFrame(scan);
+        };
+        scannerFrame = requestAnimationFrame(scan);
+      } catch (error) {
+        cancelAnimationFrame(scannerFrame);
+        scannerFrame = 0;
+        scannerStream?.getTracks().forEach((track) => track.stop());
+        scannerStream = null;
+        byId("scannerVideo").srcObject = null;
+        byId("scannerStatus").textContent = scannerStartupError(error);
+      }
+    }
+
+    async function setupInitialAction() {
+      const params = new URLSearchParams(location.search);
+      const action = params.get("action") || "";
+      const prompt = params.get("prompt") || "";
+      const autoFind = action === "find" && params.get("auto") === "find";
+      const resumeInteractionId = Number(params.get("resume") || 0);
+      if (["setup", "setup-new"].includes(action)) {
+        const onboarding = action === "setup-new" ? "1" : "destination";
+        window.location.replace(`/storage?view=places&onboarding=${onboarding}`);
+        return;
+      }
+      await setLocationContext(params.get("location") || "");
+      if (resumeInteractionId) {
+        if (!currentLocationId) {
+          setComposerStatus("Choose an item destination to continue", "error");
+          return;
+        }
+        try {
+          const handoff = await api(`/assistant/handoffs/${resumeInteractionId}`);
+          byId("command").value = handoff.resume_command || handoff.command || "";
+          pendingPhotos = (handoff.photo_ids || []).map((id) => ({id:Number(id)})).filter((photo) => photo.id > 0);
+          pendingPhotoPayloads = [];
+          resumedOfflinePhotoIds = [];
+          resumedOfflinePhotoPayloads = [];
+          renderPhotos();
+          setComposerStatus("Preparing put-away");
+          await submit("put-away");
+        } catch (error) {
+          setComposerStatus(friendlyError(error,"Could not resume put-away"), "error");
+        }
+        return;
+      }
+      if (prompt) {
+        if (["find","put-away","learn-rule"].includes(action)) setConversationMode(action);
+        byId("command").value = prompt;
+        byId("command").focus();
+        byId("command").setSelectionRange(prompt.length,prompt.length);
+        setComposerStatus(action === "put-away" && currentLocationId ? "Ready to put away here" : "Ready");
+        if (autoFind) await submit("find");
+        return;
+      }
+      if (action === "find" || action === "put-away" || action === "learn-rule") {
+        setConversationMode(action);
+        setComposerStatus(quickActionPrompt(action));
+        byId("command").focus();
+      } else if (action === "rules") {
+        await submit("rules");
+      }
+    }
+
+    function bindActionButtons(root = document) {
+      root.querySelectorAll("[data-action]").forEach((button) => {
+        button.onclick = () => {
+          const action = button.dataset.action;
+          if (action === "sort-photo" && !pendingPhotos.length && !pendingPhotoPayloads.length && !resumedOfflinePhotoPayloads.length) {
+            photoIntent = action;
+            byId("photoInput").click();
+            return;
+          }
+          if (["find","put-away","learn-rule"].includes(action) && !byId("command").value.trim()) {
+            if (conversationMode === action) {
+              setConversationMode("");
+              setComposerStatus("");
+              byId("command").focus();
+              return;
+            }
+            setConversationMode(action);
+            setComposerStatus(quickActionPrompt(action));
+            byId("command").focus();
+            return;
+          }
+          submit(action);
+        };
+      });
+    }
+
+    async function start() {
+      bindActionButtons();
+      byId("sendButton").onclick = () => submit();
+      byId("newConversation").onclick = startNewConversation;
+      byId("clearLocationContext").onclick = clearLocationContext;
+      byId("command").addEventListener("input", resizeCommandInput);
+      byId("command").addEventListener("focus", resizeCommandInput);
+      byId("command").addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
+      });
+      byId("photoButton").onclick = () => byId("photoInput").click();
+      byId("photoInput").onchange = () => uploadPhotos(byId("photoInput").files || []);
+      byId("clearLights").onclick = async () => {
+        try {
+          const result = await api("/clear",{method:"POST"});
+          activeFinds = [];
+          proposalLights = [];
+          renderLights();
+          setComposerStatus(result.light_ok === false ? "Locations cleared; controller unavailable" : "Active locations cleared");
+        } catch (error) { setComposerStatus(friendlyError(error,"Could not clear finds"),"error"); }
+      };
+      byId("reviewToggle").onclick = () => {
+        reviewsCollapsed = !reviewsCollapsed;
+        renderReviewQueue();
+      };
+      byId("retryOffline").onclick = retryOfflineRequests;
+      const closeOfflineDiscard = () => byId("offlineDiscardDialog").close();
+      byId("clearOffline").onclick = () => {
+        const count = offlineRequests.length;
+        byId("offlineDiscardSummary").textContent = `${count} saved request${count === 1 ? "" : "s"} will be removed. Inventory has not changed.`;
+        byId("offlineDiscardDialog").showModal();
+        byId("confirmOfflineDiscard").focus();
+      };
+      byId("closeOfflineDiscard").onclick = closeOfflineDiscard;
+      byId("cancelOfflineDiscard").onclick = closeOfflineDiscard;
+      byId("offlineDiscardDialog").addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeOfflineDiscard();
+      });
+      byId("confirmOfflineDiscard").onclick = async () => {
+        const button = byId("confirmOfflineDiscard");
+        button.disabled = true;
+        try {
+          await clearOfflineRequests();
+          await loadOfflineQueue();
+          closeOfflineDiscard();
+          setComposerStatus("Offline requests discarded");
+        } finally {
+          button.disabled = false;
+        }
+      };
+      byId("scanButton").onclick = startScanner;
+      if (!qrScannerAvailable()) {
+        byId("scanButton").disabled = true;
+        byId("scanButton").title = "QR scanning unavailable";
+      }
+      byId("closeScanner").onclick = stopScanner;
+      byId("scannerDialog").addEventListener("cancel", (event) => { event.preventDefault(); stopScanner(); });
+      setupSpeech();
+      await Promise.all([renderWorkspaceWelcome(),loadReviewQueue(),loadOfflineQueue()]);
+      await setupInitialAction();
+      await initializeInteractionCursor();
+      resizeCommandInput();
+      updateDockSpace();
+      if ("ResizeObserver" in window) new ResizeObserver(updateDockSpace).observe(document.querySelector(".composer-shell"));
+      window.addEventListener("resize",updateDockSpace);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+      window.addEventListener("online",retryOfflineRequests);
+      window.addEventListener("online",retryQueuedPhotoAttachments);
+      window.addEventListener("beforeunload", () => { running = false; scannerStream?.getTracks().forEach((track) => track.stop()); });
+      pollState();
+      retryOfflineRequests();
+      retryQueuedPhotoAttachments();
+    }
+
+    setupPwaInstall();
+    (window.magpieAuthReady || Promise.resolve()).then(start);
+  </script>
+</body>
+</html>

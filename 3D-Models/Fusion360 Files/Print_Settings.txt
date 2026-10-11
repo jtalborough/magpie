@@ -1,0 +1,11 @@
+
+3D-printing of the files has been tested with the following settings:
+	
+	- Prusa MK2S
+	- PLA
+	- 0.2mm layer height
+	- 0% infill
+	- Support material only needed on some of the parts with large overhangs
+
+The tolerance between the drawers and the drawer-holders has been set to 0.2mm.
+This may need to be adjusted depending on the 3D-printer used.
