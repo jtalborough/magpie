@@ -24,11 +24,24 @@ without becoming separate inventory systems.
 
 ## Screenshots
 
+Real UI from a local demo run with synthetic workshop data. No AI keys, no hardware: the cabinet lights are simulated.
+
+**Ask where something is.** Magpie answers with the exact bin and lights it up (highlighted on the map).
+
+![Magpie answering "where are the M3 screws?" with the cabinet map](docs/images/magpie-find.png)
+
+| Inventory | Mobile |
+|---|---|
+| ![Inventory table with filters and active locations](docs/images/magpie-items.png) | <img src="docs/images/magpie-mobile.png" alt="Magpie on a phone" width="260"> |
+
+<details>
+<summary>Early design concepts</summary>
+
 | Put-away flow | Assistant interface |
 |---|---|
 | ![Put-away concept](docs/images/putaway-concept.png) | ![Interface concept](docs/images/interface-concept.png) |
 
-> _More coming: the lit cabinet in action, the mobile app, and the kiosk display._
+</details>
 
 ## Architecture
 
