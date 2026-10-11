@@ -40,11 +40,19 @@ curl http://127.0.0.1:8765/assistant/status
 
 #### Pi Deployments
 
-Deploy to a Pi by checking out the desired revision on the device and re-running
-`scripts/install-pi5-led-service.sh`. This public repository intentionally ships
-no self-hosted-runner deployment workflows; if you automate deploys, keep that
-workflow in a private repository so untrusted pull requests can never reach
-your hardware.
+`.github/workflows/deploy-pi.yml` deploys an explicitly selected revision to the
+Pi. It runs on a GitHub self-hosted runner registered on the Pi with the labels
+`self-hosted, searchable-storage-pi`. The runner connects outbound to GitHub, so
+the Pi needs no inbound SSH.
+
+Because this repository is public, the Pi workflows (`deploy-pi`,
+`pi-diagnostics`, `pi-voice-test`) only accept `workflow_dispatch` from the
+repository owner, run in the reviewer-protected `magpie-production`
+environment, and never run for pull requests. Keep it that way: never add a
+`pull_request` trigger to a job that targets a self-hosted runner.
+
+Optional repository variable `PI_APP_DIR` sets the runtime install directory on
+the Pi (default `~/searchable-storage-led`).
 
 #### API Examples
 

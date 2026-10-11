@@ -1,0 +1,303 @@
+name: Deploy to Pi
+
+on:
+  workflow_dispatch:
+    inputs:
+      install_kiosk:
+        description: "Install or restart the Pi cabinet screen kiosk"
+        required: false
+        type: boolean
+        default: false
+      install_voice:
+        description: "Install or restart the Pi cabinet voice listener"
+        required: false
+        type: boolean
+        default: false
+      voice_audio_threshold:
+        description: "Persist MAGPIE_VOICE_AUDIO_THRESHOLD when installing voice"
+        required: false
+        type: string
+        default: ""
+      check_peripherals:
+        description: "Print Pi screen/microphone diagnostics after deploy"
+        required: false
+        type: boolean
+        default: false
+      test_voice_once:
+        description: "Stop voice service, run one live voice capture, then restart it"
+        required: false
+        type: boolean
+        default: false
+      install_secure_tunnel:
+        description: "Install or restart the legacy owner-only Pi POC tunnel"
+        required: false
+        type: boolean
+        default: false
+      check_secure_origin:
+        description: "Verify the central customer HTTPS origin after deployment"
+        required: false
+        type: boolean
+        default: false
+      configure_edge_access:
+        description: "Provision Cloudflare Access machine credentials for central edge clients"
+        required: false
+        type: boolean
+        default: false
+      connect_central_edge:
+        description: "Pair/install the cabinet edge worker without replacing local voice or screen"
+        required: false
+        type: boolean
+        default: false
+      bootstrap_edge_pairing:
+        description: "Generate a protected one-use pairing code on the Pi runner"
+        required: false
+        type: boolean
+        default: false
+      activate_central_experience:
+        description: "Point cabinet voice and kiosk at central Magpie after edge connection"
+        required: false
+        type: boolean
+        default: false
+      configure_supabase:
+        description: "Migrate SQLite and switch the Pi to configured Supabase secrets"
+        required: false
+        type: boolean
+        default: false
+      voice_once_countdown_seconds:
+        description: "Seconds to wait before one-shot voice recording starts"
+        required: false
+        type: string
+        default: "10"
+      voice_test_transcript:
+        description: "Optional fixed transcript for routing/TTS diagnostics"
+        required: false
+        type: string
+        default: ""
+      voice_test_speak_response:
+        description: "Synthesize and play the fixed-transcript response"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-pi
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Install and restart LED service
+    # Public repo: only the owner's pushes/dispatches may reach these runners or secrets.
+    if: ${{ github.repository_owner == 'jtalborough' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && (github.event_name != 'workflow_dispatch' || github.actor == 'jtalborough') }}
+    environment: magpie-production
+    runs-on:
+      - self-hosted
+      - searchable-storage-pi
+    timeout-minutes: 15
+
+    env:
+      APP_DIR: ${{ vars.PI_APP_DIR }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Verify Python package
+        run: |
+          rm -rf .venv-ci
+          python3 -m venv --system-site-packages .venv-ci
+          . .venv-ci/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install ".[test,edge]"
+          python -m pytest
+
+      - name: Install service
+        run: |
+          if [ -z "${APP_DIR:-}" ]; then
+            APP_DIR="$HOME/searchable-storage-led"
+          fi
+          APP_DIR="$APP_DIR" scripts/install-pi5-led-service.sh
+
+      - name: Migrate and switch to Supabase
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.configure_supabase }}
+        env:
+          SUPABASE_URL: ${{ secrets.MAGPIE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MAGPIE_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_WORKSPACE_ID: ${{ vars.MAGPIE_SUPABASE_WORKSPACE_ID }}
+          MAGPIE_PUBLIC_BASE_URL: ${{ vars.MAGPIE_PUBLIC_ORIGIN }}
+        run: |
+          if [ -z "${APP_DIR:-}" ]; then
+            APP_DIR="$HOME/searchable-storage-led"
+          fi
+          APP_DIR="$APP_DIR" scripts/configure-pi-supabase.sh
+
+      - name: Verify service health
+        run: |
+          if [ -z "${APP_DIR:-}" ]; then
+            APP_DIR="$HOME/searchable-storage-led"
+          fi
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused \
+            http://127.0.0.1:8765/health
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused \
+            http://127.0.0.1:8765/build
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.request
+
+          data = json.load(urllib.request.urlopen("http://127.0.0.1:8765/build"))
+          print("deployed build:", data.get("label") or data)
+          if not data.get("commit"):
+              raise SystemExit("deployed build metadata is missing commit")
+
+          screen = {}
+          expected_kiosk_commit = str(data["commit"])[:7]
+          for _ in range(30):
+              screen = json.load(
+                  urllib.request.urlopen("http://127.0.0.1:8765/screen/status", timeout=10)
+              ).get("screen") or {}
+              if screen.get("active") and expected_kiosk_commit in str(
+                  screen.get("build_label") or ""
+              ):
+                  break
+              time.sleep(2)
+          print(
+              "kiosk heartbeat:",
+              f"active={str(bool(screen.get('active'))).lower()}",
+              f"build={screen.get('build_label', '')}",
+          )
+          if not screen.get("active") or expected_kiosk_commit not in str(
+              screen.get("build_label") or ""
+          ):
+              raise SystemExit(
+                  f"kiosk did not load deployed commit {expected_kiosk_commit}"
+              )
+
+          readiness = json.load(
+              urllib.request.urlopen("http://127.0.0.1:8765/product/readiness", timeout=30)
+          )
+          checks = readiness.get("checks") or []
+          required_total = int(readiness.get("required_total") or 0)
+          print(
+              "product readiness:",
+              f"{readiness.get('passed', 0)}/{required_total} required checks pass;",
+              f"ready={str(bool(readiness.get('ready'))).lower()}",
+          )
+          for check in checks:
+              if not check.get("passed"):
+                  print(
+                      "readiness gap:",
+                      check.get("key", "unknown"),
+                      "-",
+                      check.get("evidence", ""),
+                      "-",
+                      check.get("next_step", ""),
+                  )
+          print(
+              "whole-storage journeys:",
+              json.dumps(readiness.get("agent_storage_journeys") or {}, sort_keys=True),
+          )
+          print(
+              "agent correction journey:",
+              json.dumps(readiness.get("agent_correction_journey") or {}, sort_keys=True),
+          )
+          if readiness.get("schema") != "magpie.product_readiness.v8":
+              raise SystemExit("product readiness endpoint returned an unexpected schema")
+          if required_total <= 0:
+              raise SystemExit("product readiness endpoint returned no required checks")
+          PY
+          "$APP_DIR/.venv/bin/searchable-storage-migrate-supabase" \
+            --config "$APP_DIR/config/led-controller.json" \
+            --dry-run
+          APP_DIR="$APP_DIR" scripts/verify-runtime-storage.sh
+
+      - name: Install screen kiosk
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.install_kiosk }}
+        run: |
+          scripts/install-pi5-kiosk.sh
+
+      - name: Install voice listener
+        if: ${{ inputs.install_voice }}
+        env:
+          MAGPIE_VOICE_AUDIO_THRESHOLD: ${{ inputs.voice_audio_threshold }}
+        run: |
+          scripts/install-pi5-voice-service.sh
+
+      - name: Check screen and microphone
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_peripherals }}
+        run: |
+          scripts/check-pi-peripherals.sh
+
+      - name: Install secure tunnel
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.install_secure_tunnel }}
+        env:
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          scripts/install-pi5-cloudflare-tunnel.sh
+
+      - name: Verify secure origin
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_secure_origin }}
+        env:
+          MAGPIE_PUBLIC_ORIGIN: ${{ vars.MAGPIE_PUBLIC_ORIGIN }}
+          MAGPIE_ORIGIN_MODE: public
+        run: |
+          scripts/check-secure-origin.sh
+
+      - name: Configure edge machine access
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.configure_edge_access }}
+        env:
+          MAGPIE_CF_ACCESS_CLIENT_ID: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_ID }}
+          MAGPIE_CF_ACCESS_CLIENT_SECRET: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          if [ -z "${APP_DIR:-}" ]; then
+            APP_DIR="$HOME/searchable-storage-led"
+          fi
+          APP_DIR="$APP_DIR" scripts/configure-pi-edge-access.sh
+
+      - name: Connect cabinet to central edge
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.connect_central_edge }}
+        env:
+          MAGPIE_CENTRAL_URL: ${{ vars.MAGPIE_EDGE_ORIGIN }}
+          MAGPIE_EDGE_WORKSPACE_ID: ${{ vars.MAGPIE_SUPABASE_WORKSPACE_ID }}
+          MAGPIE_SUPABASE_WORKSPACE_ID: ${{ vars.MAGPIE_SUPABASE_WORKSPACE_ID }}
+          MAGPIE_EDGE_DEVICE_ID: ${{ vars.MAGPIE_EDGE_DEVICE_ID }}
+          MAGPIE_CONFIGURED_PAIRING_CODE: ${{ secrets.MAGPIE_EDGE_PAIRING_CODE }}
+          MAGPIE_SUPABASE_URL: ${{ secrets.MAGPIE_SUPABASE_URL }}
+          MAGPIE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MAGPIE_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "${APP_DIR:-}" ]; then
+            APP_DIR="$HOME/searchable-storage-led"
+          fi
+          test -n "$MAGPIE_CENTRAL_URL"
+          test -n "$MAGPIE_EDGE_WORKSPACE_ID"
+          pairing_file="$RUNNER_TEMP/magpie-edge-pairing-code"
+          trap 'rm -f "$pairing_file"' EXIT
+          pairing_code="$MAGPIE_CONFIGURED_PAIRING_CODE"
+          if [ "${{ inputs.bootstrap_edge_pairing }}" = "true" ]; then
+            python3 scripts/create-edge-pairing.py \
+              --device-id "${MAGPIE_EDGE_DEVICE_ID:-main-cabinet}" \
+              --output "$pairing_file"
+            pairing_code="$(cat "$pairing_file")"
+          fi
+          command=(
+            scripts/connect-pi5-cabinet.sh
+            --app-dir "$APP_DIR"
+            --central-url "$MAGPIE_CENTRAL_URL"
+            --workspace-id "$MAGPIE_EDGE_WORKSPACE_ID"
+            --device-id "${MAGPIE_EDGE_DEVICE_ID:-main-cabinet}"
+          )
+          if [ -n "$pairing_code" ]; then
+            command+=(--pairing-code "$pairing_code")
+          fi
+          if [ "${{ inputs.activate_central_experience }}" = "true" ]; then
+            command+=(--activate-central-experience)
+          fi
+          "${command[@]}"
+
+      - name: Run one-shot voice test
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_voice_once }}
+        env:
+          VOICE_ONCE_COUNTDOWN_SECONDS: ${{ inputs.voice_once_countdown_seconds }}
+          VOICE_TEST_TRANSCRIPT: ${{ inputs.voice_test_transcript }}
+          VOICE_TEST_SPEAK_RESPONSE: ${{ inputs.voice_test_speak_response }}
+        run: |
+          scripts/test-pi-voice-once.sh

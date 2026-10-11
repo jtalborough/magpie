@@ -1,0 +1,73 @@
+name: Pi Voice Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      countdown_seconds:
+        description: "Seconds to wait before recording starts"
+        required: false
+        type: string
+        default: "20"
+      phrase:
+        description: "Phrase to say near the cabinet during capture"
+        required: false
+        type: string
+        default: "Magpie, find M4 T-nuts"
+      audio_threshold:
+        description: "Override MAGPIE_VOICE_AUDIO_THRESHOLD for this run"
+        required: false
+        type: string
+        default: ""
+      clip_seconds:
+        description: "Override MAGPIE_VOICE_CLIP_SECONDS for this run"
+        required: false
+        type: string
+        default: ""
+      transcript:
+        description: "Skip recording and diagnose this transcript"
+        required: false
+        type: string
+        default: ""
+      speak_response:
+        description: "Speak the transcript diagnostic response"
+        required: false
+        type: boolean
+        default: false
+      output_device:
+        description: "Override the ALSA playback device"
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: pi-voice-test
+  cancel-in-progress: true
+
+jobs:
+  voice-test:
+    name: Capture one cabinet voice command
+    # Public repo: only the owner's pushes/dispatches may reach these runners or secrets.
+    if: ${{ github.repository_owner == 'jtalborough' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && (github.event_name != 'workflow_dispatch' || github.actor == 'jtalborough') }}
+    environment: magpie-production
+    runs-on:
+      - self-hosted
+      - searchable-storage-pi
+    timeout-minutes: 5
+
+    env:
+      APP_DIR: ${{ vars.PI_APP_DIR }}
+      VOICE_ONCE_COUNTDOWN_SECONDS: ${{ inputs.countdown_seconds }}
+      VOICE_ONCE_PHRASE: ${{ inputs.phrase }}
+      MAGPIE_VOICE_AUDIO_THRESHOLD: ${{ inputs.audio_threshold }}
+      MAGPIE_VOICE_CLIP_SECONDS: ${{ inputs.clip_seconds }}
+      VOICE_TEST_TRANSCRIPT: ${{ inputs.transcript }}
+      VOICE_TEST_SPEAK_RESPONSE: ${{ inputs.speak_response }}
+      MAGPIE_VOICE_OUTPUT_DEVICE: ${{ inputs.output_device }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Run one-shot voice capture
+        run: |
+          scripts/test-pi-voice-once.sh

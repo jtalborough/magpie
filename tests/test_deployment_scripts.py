@@ -2618,3 +2618,396 @@ def test_supabase_schema_workflow_proves_clean_postgres_install() -> None:
     assert "public.magpie_schema_capabilities()" in workflow
     assert "location_content_revisions" in workflow
     assert "to_regclass('public.active_guidance_states')" in workflow
+
+
+def test_deploy_workflow_gates_on_runtime_storage_preflight() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+
+    assert 'APP_DIR="$APP_DIR" scripts/verify-runtime-storage.sh' in workflow
+    assert 'readiness.get("required_total")' in workflow
+    assert '"magpie.product_readiness.v8"' in workflow
+    assert "returned no required checks" in workflow
+
+
+def test_container_publish_workflow_records_content_digest() -> None:
+    workflow = (ROOT / ".github/workflows/publish-container.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "id: build" in workflow
+    assert "steps.build.outputs.digest" in workflow
+    assert "Record verified release identity" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "hosted-image-${{ github.sha }}" in workflow
+    assert '"ghcr.io/${GITHUB_REPOSITORY}@${{ steps.build.outputs.digest }}"' in workflow
+
+
+def test_container_publish_workflow_gates_promotion_on_complete_journey() -> None:
+    workflow = (ROOT / ".github/workflows/publish-container.yml").read_text(
+        encoding="utf-8"
+    )
+    verifier = (ROOT / "scripts/verify_hosted_local.py").read_text(encoding="utf-8")
+
+    build_step = "uses: docker/build-push-action@v6"
+    journey_step = "python3 scripts/verify_hosted_local.py"
+    publish_tags_step = "name: Publish verified image tags"
+    record_step = "name: Record published digest"
+    assert "Verify complete hosted storage journey" in workflow
+    assert "steps.build.outputs.digest" in workflow
+    assert "--skip-build" in workflow
+    assert "timeout-minutes: 15" in workflow
+    assert workflow.index(build_step) < workflow.index(journey_step)
+    assert workflow.index(journey_step) < workflow.index(publish_tags_step)
+    assert workflow.index(publish_tags_step) < workflow.index(record_step)
+    assert "push-by-digest=true" in workflow
+    assert "docker buildx imagetools create" in workflow
+    assert "tags: ${{ steps.meta.outputs.tags }}" not in workflow
+    assert "exercise_edge_controller(" in verifier
+    assert "verify_pwa_contract(base_url)" in verifier
+    assert "verify_client_surfaces(base_url, first)" in verifier
+    assert '"/mobile": (' in verifier
+    assert '"/storage?view=places": (' in verifier
+    assert '"/kiosk": (' in verifier
+    assert '"/account": (' in verifier
+    assert 'b\'api("/storage/setup"\'' in verifier
+    assert 'b\'place_configuration_ui_required\'' in verifier
+    assert 'b\'voice_scope_ui_required\'' in verifier
+    assert 'config["edge"]["machine_url"]' in verifier
+    assert '"What storage spaces do I have?"' in verifier
+    assert '"preview_label_sheet"' in verifier
+    assert 'photo_put_command = "put away hosted smoke screwdriver from this photo"' in verifier
+    assert 'f"{base_url}/inventory/reviewed"' in verifier
+    assert "exercise_workspace_lifecycle(" in verifier
+    assert 'PHOTO_BUCKET = "magpie-photos"' in verifier
+    assert 'f"{base_url}/workspace/membership"' in verifier
+    assert 'f"{base_url}/account"' in verifier
+    assert '"magpie.product_readiness.v8"' in verifier
+    assert '"mobile_pwa",' in verifier
+    assert '"physical_storage_integrity",' in verifier
+    assert "exercise_physical_storage_checks(base_url, first)" in verifier
+    assert '"agent_correction_journey",' in verifier
+    assert '"workspace_management_journey",' in verifier
+    assert "exercise_hardware_intelligence(" in verifier
+    assert 'family_command = "put away M5 T-nuts"' in verifier
+    assert '"learned home from 3 similar items"' in verifier
+    assert '"put away #8 flush mount screws"' in verifier
+    assert 'exact_command = "put away #8 x 3/4 inch flush mount screw"' in verifier
+    assert "exercise_atomic_csv_path_import(" in verifier
+    assert '"create_missing_locations": True' in verifier
+    migration_step = '"migration",\n                "up",\n                "--local",\n                "--include-all",'
+    schema_step = 'print("Checking the migrated Supabase repository contract...")'
+    assert migration_step in verifier
+    assert verifier.index(migration_step) < verifier.index(schema_step)
+    assert '"searchable-storage-migrate-supabase"' in verifier
+    assert '"--workspace-id",\n                        workspace_id,' in verifier
+    legacy_directory = 'legacy_dir = Path(temp_dir) / "legacy"'
+    legacy_permissions = "legacy_dir.chmod(0o777)"
+    legacy_fixture_run = 'f"{legacy_dir}:/legacy"'
+    assert verifier.index(legacy_directory) < verifier.index(legacy_permissions)
+    assert verifier.index(legacy_permissions) < verifier.index(legacy_fixture_run)
+    assert '"legacy-main-cabinet-duplicate"' in verifier
+    archive_duplicate = 'locations.archive_subtree("legacy-main-cabinet-duplicate")'
+    active_replacement = 'id="legacy-main-cabinet",'
+    assert archive_duplicate in verifier
+    assert verifier.index(archive_duplicate) < verifier.index(active_replacement)
+    assert 'locations.delete_subtree("legacy-undone-room")' in verifier
+    assert "legacy SQLite migration did not preserve cabinet inventory" in verifier
+
+
+def test_hosted_auto_deploy_only_accepts_current_trusted_main_pushes() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-hosted.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'workflows: ["Publish container"]' in workflow
+    assert "types: [completed]" in workflow
+    assert "branches: [main]" in workflow
+    assert "(github.event_name == 'workflow_dispatch' && github.actor == 'jtalborough') ||" in workflow
+    assert "github.event.workflow_run.conclusion == 'success' &&" in workflow
+    assert "github.event.workflow_run.event == 'push' &&" in workflow
+    assert "github.event.workflow_run.head_branch == 'main' &&" in workflow
+    assert "github.event.workflow_run.head_repository.full_name == github.repository" in workflow
+    assert "github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.expected_commit" in workflow
+    assert "github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_run_id" in workflow
+    assert 'if (context.eventName === "workflow_run")' in workflow
+    assert 'run.event !== "push" || run.head_branch !== "main"' in workflow
+    assert "run.head_repository?.full_name !== repository" in workflow
+    assert "github.rest.repos.getBranch" in workflow
+    assert 'branch: "main"' in workflow
+    assert "branch.commit.sha !== expectedCommit" in workflow
+    assert workflow.index("branch.commit.sha !== expectedCommit") < workflow.index(
+        "Download verified release identity"
+    )
+    assert "group: deploy-hosted-magpie" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "environment: magpie-production" in workflow
+
+
+def test_hosted_deploy_promotes_the_verified_content_digest() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-hosted.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "actions: read" in workflow
+    assert "workflow_run:" in workflow
+    assert "release_run_id:" in workflow
+    assert "Validate verified publish run" in workflow
+    assert "actions/github-script@v7" in workflow
+    assert 'workflow.path !== ".github/workflows/publish-container.yml"' in workflow
+    assert 'run.conclusion !== "success"' in workflow
+    assert '(run.head_sha || "").toLowerCase() !== expectedCommit' in workflow
+    assert "Download verified release identity" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "run-id: ${{ env.RELEASE_RUN_ID }}" in workflow
+    assert 'image="$(cat "$RELEASE_DIR/image-ref")"' in workflow
+    assert 'expected="$(cat "$RELEASE_DIR/commit")"' in workflow
+    assert 'test "$expected" = "$TARGET_COMMIT"' in workflow
+    assert "@sha256:[0-9a-fA-F]{64}" in workflow
+    assert 'image="ghcr.io/${GITHUB_REPOSITORY}:sha-${TARGET_COMMIT:0:7}"' not in workflow
+
+
+def test_hosted_manual_deploy_checks_out_the_verified_release_commit() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-hosted.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'description: "Successful Publish container workflow run ID"' in workflow
+    assert 'description: "Exact 40-character commit verified by that publish run"' in workflow
+    assert "github.event.workflow_run.head_sha || inputs.expected_commit" in workflow
+    assert "Validate deployment request" in workflow
+    assert '[[ "$TARGET_COMMIT" =~ ^[0-9a-f]{40}$ ]]' in workflow
+    assert '[[ "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]' in workflow
+    assert 'ref: ${{ env.TARGET_COMMIT }}' in workflow
+    assert 'test "$expected" = "$TARGET_COMMIT"' in workflow
+    assert "github.event.workflow_run.head_sha || github.sha" not in workflow
+    assert "immutable sha-* image tag" not in workflow
+    assert workflow.index("Select immutable image") < workflow.index("Check out source")
+    assert workflow.index("Select immutable image") < workflow.index(
+        "Apply Supabase migrations"
+    )
+    assert "python3 scripts/verify_hosted_local.py --docker-preflight-only" in workflow
+    assert workflow.index("Verify container runtime") < workflow.index(
+        "Apply Supabase migrations"
+    )
+    assert "python3 scripts/apply-supabase-migrations.py --plan" in workflow
+    assert workflow.index("Plan Supabase migrations") < workflow.index(
+        "Apply Supabase migrations"
+    )
+
+
+def test_hosted_deploy_workflow_uses_dedicated_runner_and_guarded_promotion() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-hosted.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "searchable-storage-central" in workflow
+    assert "workflow_run:" in workflow
+    assert "github.event.workflow_run.head_sha || inputs.expected_commit" in workflow
+    assert "github.event.workflow_run.id || inputs.release_run_id" in workflow
+    assert "ref: ${{ env.TARGET_COMMIT }}" in workflow
+    assert "environment: magpie-production" in workflow
+    assert "MAGPIE_SUPABASE_PUBLISHABLE_KEY" in workflow
+    assert "MAGPIE_SUPABASE_SERVICE_ROLE_KEY" in workflow
+    assert "MAGPIE_EXISTING_WORKSPACE_ID" in workflow
+    assert 'test -n "$MAGPIE_EXISTING_WORKSPACE_ID"' not in workflow
+    assert 'test -n "$MAGPIE_PUBLIC_ORIGIN"' in workflow
+    assert "MAGPIE_OPENAI_API_KEY" in workflow
+    assert "MAGPIE_OPENROUTER_API_KEY" in workflow
+    assert 'test -n "$OPENAI_API_KEY" || test -n "$OPENROUTER_API_KEY"' in workflow
+    assert "CF_ACCESS_CLIENT_ID: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_ID }}" in workflow
+    assert "CF_ACCESS_CLIENT_SECRET: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_SECRET }}" in workflow
+    assert 'MAGPIE_VERIFY_EXTERNAL_ORIGINS: "true"' in workflow
+    assert 'if [[ -n "$MAGPIE_EDGE_ORIGIN" ]]; then' in workflow
+    assert 'echo "MAGPIE_REQUIRE_EDGE_ORIGIN=true" >> "$GITHUB_ENV"' in workflow
+    assert 'echo "MAGPIE_REQUIRE_EDGE_ORIGIN=false" >> "$GITHUB_ENV"' in workflow
+    assert 'test -n "$CF_ACCESS_CLIENT_ID"' in workflow
+    assert "Edge origin: authenticated and ready" in workflow
+    assert "Record verified external product boundary" in workflow
+    assert "MAGPIE_REQUIRE_PUBLIC_ORIGIN" not in workflow
+    assert "Customer origin: ready" in workflow
+    assert "scripts/check-secure-origin.sh" not in workflow
+    assert "Edge origin: not configured (software-only release)" in workflow
+    assert "scripts/prepare-hosted.py" in workflow
+    assert '--existing-workspace-id "${MAGPIE_EXISTING_WORKSPACE_ID:-}"' in workflow
+    assert 'chmod 0644 "$MAGPIE_DEPLOY_DIR/config/container-hosted.json"' not in workflow
+    assert "scripts/deploy-hosted.sh" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "run-id: ${{ env.RELEASE_RUN_ID }}" in workflow
+    assert '[[ "$TARGET_COMMIT" =~ ^[0-9a-f]{40}$ ]]' in workflow
+    assert '[[ "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]' in workflow
+    assert 'image="$(cat "$RELEASE_DIR/image-ref")"' in workflow
+    assert 'test "$expected" = "$TARGET_COMMIT"' in workflow
+
+
+def test_pi_deployment_requires_an_explicit_dispatch() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert "\n  push:" not in workflow
+    assert "github.event_name == 'push'" not in workflow
+
+
+def test_deploy_workflow_only_switches_supabase_when_dispatched() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+
+    assert "configure_supabase:" in workflow
+    assert "inputs.configure_supabase" in workflow
+    assert "secrets.MAGPIE_SUPABASE_URL" in workflow
+    assert "secrets.MAGPIE_SUPABASE_SERVICE_ROLE_KEY" in workflow
+    assert "vars.MAGPIE_SUPABASE_WORKSPACE_ID" in workflow
+    assert "scripts/configure-pi-supabase.sh" in workflow
+
+
+def test_deploy_workflow_can_stage_and_verify_central_edge_connection() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+
+    assert "connect_central_edge:" in workflow
+    assert "bootstrap_edge_pairing:" in workflow
+    assert "activate_central_experience:" in workflow
+    assert "environment: magpie-production" in workflow
+    assert "inputs.connect_central_edge" in workflow
+    assert "vars.MAGPIE_EDGE_ORIGIN" in workflow
+    assert "vars.MAGPIE_SUPABASE_WORKSPACE_ID" in workflow
+    assert (
+        "MAGPIE_SUPABASE_WORKSPACE_ID: "
+        "${{ vars.MAGPIE_SUPABASE_WORKSPACE_ID }}" in workflow
+    )
+    assert "secrets.MAGPIE_EDGE_PAIRING_CODE" in workflow
+    assert "scripts/create-edge-pairing.py" in workflow
+    assert 'trap \'rm -f "$pairing_file"\' EXIT' in workflow
+    assert "scripts/connect-pi5-cabinet.sh" in workflow
+    assert "command+=(--activate-central-experience)" in workflow
+    assert workflow.index("Configure edge machine access") < workflow.index(
+        "Connect cabinet to central edge"
+    )
+
+
+def test_voice_workflow_can_run_fixed_transcript_tts_diagnostic() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+    script = (ROOT / "scripts/test-pi-voice-once.sh").read_text(encoding="utf-8")
+
+    assert "voice_test_transcript:" in workflow
+    assert "voice_test_speak_response:" in workflow
+    assert "VOICE_TEST_TRANSCRIPT: ${{ inputs.voice_test_transcript }}" in workflow
+    assert "VOICE_TEST_SPEAK_RESPONSE: ${{ inputs.voice_test_speak_response }}" in workflow
+    assert 'voice_command+=(--speak-response)' in script
+    assert 'curl -fsS -X POST "$API_URL/clear"' in script
+
+
+def test_voice_installer_downloads_verified_open_vosk_model() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+    installer = (ROOT / "scripts/install-pi5-voice-service.sh").read_text(
+        encoding="utf-8"
+    )
+    diagnostics = (ROOT / "scripts/diagnose-pi-voice.sh").read_text(encoding="utf-8")
+
+    assert "PICOVOICE" not in workflow
+    assert "vosk-model-small-en-us-0.15" in installer
+    assert "30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498" in installer
+    assert "sha256sum --check --status" in installer
+    assert "MAGPIE_VOSK_MODEL_PATH" in installer
+    assert "MAGPIE_VOICE_API_URL" in installer
+    assert "Environment=MAGPIE_EDGE_DEVICE_ID=$EDGE_DEVICE_ID" in installer
+    assert "Environment=MAGPIE_EDGE_WORKSPACE_ID=$EDGE_WORKSPACE_ID" in installer
+    assert 'AUDIO_THRESHOLD="${MAGPIE_VOICE_AUDIO_THRESHOLD:-500}"' in installer
+    assert 'VAD_FRAME_THRESHOLD="${MAGPIE_VOICE_VAD_FRAME_THRESHOLD:-350}"' in installer
+    assert 'WAKE_MIN_CONFIDENCE="${MAGPIE_LOCAL_WAKE_MIN_CONFIDENCE:-0.8}"' in installer
+    assert "Environment=MAGPIE_LOCAL_WAKE_MIN_CONFIDENCE=$WAKE_MIN_CONFIDENCE" in installer
+    assert "MAGPIE_VOICE_(AUDIO_THRESHOLD|VAD_FRAME_THRESHOLD)" in diagnostics
+    assert "if: ${{ inputs.install_voice }}" in workflow
+    assert "inputs.install_voice" in workflow
+
+
+def test_edge_access_configuration_is_secret_backed_and_atomic(tmp_path) -> None:
+    app = tmp_path / "app"
+    app.mkdir()
+    secrets = app / "secrets.env"
+    secrets.write_text("OPENAI_API_KEY=keep\nMAGPIE_CF_ACCESS_CLIENT_ID=old\n")
+    env = {
+        **os.environ,
+        "APP_DIR": str(app),
+        "MAGPIE_CF_ACCESS_CLIENT_ID": "machine-id.access",
+        "MAGPIE_CF_ACCESS_CLIENT_SECRET": "machine-secret",
+    }
+
+    result = subprocess.run(
+        [str(ROOT / "scripts/configure-pi-edge-access.sh")],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert secrets.read_text() == (
+        "OPENAI_API_KEY=keep\n"
+        "MAGPIE_CF_ACCESS_CLIENT_ID=machine-id.access\n"
+        "MAGPIE_CF_ACCESS_CLIENT_SECRET=machine-secret\n"
+    )
+    assert secrets.stat().st_mode & 0o777 == 0o600
+    assert "machine-secret" not in result.stdout
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+    assert "configure_edge_access:" in workflow
+    assert "scripts/configure-pi-edge-access.sh" in workflow
+
+
+def test_deploy_workflow_checks_public_customer_origin() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-pi.yml").read_text(encoding="utf-8")
+
+    assert "scripts/check-secure-origin.sh" in workflow
+    assert "MAGPIE_ORIGIN_MODE: public" in workflow
+
+
+def test_public_customer_origin_is_monitored_for_boundary_drift() -> None:
+    workflow = (
+        ROOT / ".github/workflows/check-public-origin.yml"
+    ).read_text(encoding="utf-8")
+
+    assert 'cron: "17 * * * *"' in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "MAGPIE_ORIGIN_MODE: public" in workflow
+    assert "MAGPIE_EXPECTED_COMMIT" not in workflow
+    assert "vars.MAGPIE_PUBLIC_ORIGIN" in workflow
+    assert "scripts/check-secure-origin.sh" in workflow
+    assert "CF_ACCESS_CLIENT_ID" not in workflow
+    assert "CF_ACCESS_CLIENT_SECRET" not in workflow
+    assert "deploy" not in workflow.lower()
+
+
+def test_hosted_deploy_applies_supabase_migrations_before_promotion() -> None:
+    workflow = (ROOT / ".github/workflows/deploy-hosted.yml").read_text(
+        encoding="utf-8"
+    )
+
+    migration_step = "run: python3 scripts/apply-supabase-migrations.py\n"
+    migration_plan = "python3 scripts/apply-supabase-migrations.py --plan"
+    assert "SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}" in workflow
+    assert migration_plan in workflow
+    assert migration_step in workflow
+    assert workflow.index(migration_plan) < workflow.index(migration_step)
+    assert workflow.index(migration_step) < workflow.index("scripts/deploy-hosted.sh")
+
+
+
+def test_public_repo_guards_every_privileged_workflow_job() -> None:
+    """Self-hosted runners and deploy secrets must never be reachable from forks or PRs."""
+    import yaml
+
+    workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+    assert workflows
+    for path in workflows:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        triggers = workflow.get(True) or workflow.get("on") or {}
+        for job_name, job in workflow["jobs"].items():
+            runs_on = job.get("runs-on")
+            labels = runs_on if isinstance(runs_on, list) else [runs_on]
+            privileged = "self-hosted" in labels or job.get("environment")
+            if not privileged:
+                continue
+            assert "pull_request" not in triggers, path.name
+            assert "pull_request_target" not in triggers, path.name
+            guard = str(job.get("if", ""))
+            assert "github.repository_owner == 'jtalborough'" in guard, (path.name, job_name)
+            assert job.get("environment") == "magpie-production", (path.name, job_name)
+            if "self-hosted" in labels:
+                assert "github.actor == 'jtalborough'" in guard, (path.name, job_name)

@@ -22,7 +22,13 @@ edge = [
 test = [
   "httpx2>=0.28.0",
   "pytest>=9.0.0",
+  "pyyaml>=6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jtalborough/magpie"
+Repository = "https://github.com/jtalborough/magpie"
+Issues = "https://github.com/jtalborough/magpie/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

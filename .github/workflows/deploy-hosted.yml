@@ -1,0 +1,219 @@
+name: Deploy hosted Magpie
+
+on:
+  workflow_run:
+    workflows: ["Publish container"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: "Successful Publish container workflow run ID"
+        required: true
+        type: string
+      expected_commit:
+        description: "Exact 40-character commit verified by that publish run"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+  actions: read
+
+concurrency:
+  group: deploy-hosted-magpie
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Promote central service
+    # Public repo: only the owner's pushes/dispatches may reach this runner or its secrets.
+    if: >-
+      github.repository_owner == 'jtalborough' &&
+      (
+      (github.event_name == 'workflow_dispatch' && github.actor == 'jtalborough') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+      )
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - searchable-storage-central
+    timeout-minutes: 15
+    environment: magpie-production
+    env:
+      TARGET_COMMIT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.expected_commit }}
+      RELEASE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_run_id }}
+      COMPOSE_PROJECT_NAME: magpie-production
+      MAGPIE_DEPLOY_DIR: /home/magpie-runner/services/magpie
+      MAGPIE_SUPABASE_URL: ${{ secrets.MAGPIE_SUPABASE_URL }}
+      MAGPIE_EXISTING_WORKSPACE_ID: ${{ vars.MAGPIE_EXISTING_WORKSPACE_ID }}
+      MAGPIE_PUBLIC_ORIGIN: ${{ vars.MAGPIE_PUBLIC_ORIGIN }}
+      MAGPIE_EDGE_ORIGIN: ${{ vars.MAGPIE_EDGE_ORIGIN }}
+      MAGPIE_VERIFY_EXTERNAL_ORIGINS: "true"
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MAGPIE_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MAGPIE_SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.MAGPIE_OPENAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.MAGPIE_OPENROUTER_API_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.MAGPIE_CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_AI_API_TOKEN: ${{ secrets.MAGPIE_CLOUDFLARE_AI_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.MAGPIE_CF_ACCESS_CLIENT_SECRET }}
+
+    steps:
+      - name: Validate deployment request
+        run: |
+          [[ "$TARGET_COMMIT" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "deployment commit must be an exact lowercase 40-character Git commit" >&2
+            exit 1
+          }
+          [[ "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+            echo "release_run_id must be a positive GitHub Actions run ID" >&2
+            exit 1
+          }
+
+      - name: Validate verified publish run
+        uses: actions/github-script@v7
+        env:
+          EXPECTED_COMMIT: ${{ env.TARGET_COMMIT }}
+          RELEASE_RUN_ID: ${{ env.RELEASE_RUN_ID }}
+        with:
+          script: |
+            const runId = Number(process.env.RELEASE_RUN_ID);
+            const expectedCommit = process.env.EXPECTED_COMMIT.toLowerCase();
+            const {data: run} = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const {data: workflow} = await github.rest.actions.getWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: run.workflow_id,
+            });
+            if (workflow.path !== ".github/workflows/publish-container.yml") {
+              core.setFailed(`run ${runId} is from ${workflow.path}, not Publish container`);
+            } else if (run.conclusion !== "success") {
+              core.setFailed(`publish run ${runId} concluded ${run.conclusion || "unknown"}`);
+            } else if ((run.head_sha || "").toLowerCase() !== expectedCommit) {
+              core.setFailed(
+                `publish run ${runId} built ${run.head_sha || "no commit"}, not ${expectedCommit}`
+              );
+            }
+            if (context.eventName === "workflow_run") {
+              const repository = `${context.repo.owner}/${context.repo.repo}`;
+              if (run.event !== "push" || run.head_branch !== "main" ||
+                  run.head_repository?.full_name !== repository) {
+                core.setFailed("automatic promotion requires a same-repository main push");
+                return;
+              }
+              const {data: branch} = await github.rest.repos.getBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch: "main",
+              });
+              if (branch.commit.sha !== expectedCommit) {
+                core.setFailed("automatic promotion refused: publish commit is no longer main HEAD");
+              }
+            }
+
+      - name: Download verified release identity
+        uses: actions/download-artifact@v4
+        with:
+          name: hosted-image-${{ env.TARGET_COMMIT }}
+          path: ${{ runner.temp }}/magpie-release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.RELEASE_RUN_ID }}
+
+      - name: Select immutable image
+        env:
+          RELEASE_DIR: ${{ runner.temp }}/magpie-release
+        run: |
+          test -s "$RELEASE_DIR/image-ref"
+          test -s "$RELEASE_DIR/commit"
+          image="$(cat "$RELEASE_DIR/image-ref")"
+          expected="$(cat "$RELEASE_DIR/commit")"
+          test "$expected" = "$TARGET_COMMIT"
+          [[ "$image" =~ ^ghcr.io/${GITHUB_REPOSITORY}@sha256:[0-9a-fA-F]{64}$ ]] || {
+            echo "verified release artifact contains an invalid image digest" >&2
+            exit 1
+          }
+          echo "MAGPIE_IMAGE=$image" >> "$GITHUB_ENV"
+          echo "MAGPIE_EXPECTED_COMMIT=$expected" >> "$GITHUB_ENV"
+
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_COMMIT }}
+
+      - name: Require production secrets
+        run: |
+          test -n "$MAGPIE_SUPABASE_URL"
+          test -n "$MAGPIE_PUBLIC_ORIGIN"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_PUBLISHABLE_KEY"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          test -n "$OPENAI_API_KEY" || test -n "$OPENROUTER_API_KEY" || test -n "$CLOUDFLARE_AI_API_TOKEN"
+          test -z "$CLOUDFLARE_AI_API_TOKEN" || test -n "$CLOUDFLARE_ACCOUNT_ID"
+          if [[ -n "$MAGPIE_EDGE_ORIGIN" ]]; then
+            test -n "$CF_ACCESS_CLIENT_ID"
+            test -n "$CF_ACCESS_CLIENT_SECRET"
+            echo "MAGPIE_REQUIRE_EDGE_ORIGIN=true" >> "$GITHUB_ENV"
+          else
+            echo "MAGPIE_REQUIRE_EDGE_ORIGIN=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify container runtime
+        run: python3 scripts/verify_hosted_local.py --docker-preflight-only
+
+      - name: Plan Supabase migrations
+        run: python3 scripts/apply-supabase-migrations.py --plan
+
+      - name: Apply Supabase migrations
+        run: python3 scripts/apply-supabase-migrations.py
+
+      - name: Verify workspace attachment and render runtime config
+        run: |
+          install -d -m 0750 "$MAGPIE_DEPLOY_DIR/config"
+          python3 scripts/prepare-hosted.py \
+            --template config/container-supabase.example.json \
+            --output "$MAGPIE_DEPLOY_DIR/config/container-hosted.json" \
+            --supabase-url "$MAGPIE_SUPABASE_URL" \
+            --public-origin "$MAGPIE_PUBLIC_ORIGIN" \
+            --edge-origin "${MAGPIE_EDGE_ORIGIN:-}" \
+            --existing-workspace-id "${MAGPIE_EXISTING_WORKSPACE_ID:-}"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote and verify central service
+        env:
+          MAGPIE_COMPOSE_FILE: ${{ github.workspace }}/compose.hosted.yaml
+          MAGPIE_CONFIG_FILE: /home/magpie-runner/services/magpie/config/container-hosted.json
+        run: scripts/deploy-hosted.sh
+
+      - name: Record deployed build
+        run: |
+          build="$(curl --fail --silent --show-error http://127.0.0.1:8766/build)"
+          echo "### Hosted Magpie" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$build" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record verified external product boundary
+        run: |
+          echo "Customer origin: ready ($MAGPIE_PUBLIC_ORIGIN)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$MAGPIE_REQUIRE_EDGE_ORIGIN" == "true" ]]; then
+            echo "Edge origin: authenticated and ready ($MAGPIE_EDGE_ORIGIN)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Edge origin: not configured (software-only release)" >> "$GITHUB_STEP_SUMMARY"
+          fi

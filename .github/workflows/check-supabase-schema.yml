@@ -58,8 +58,9 @@ jobs:
           create role anon nologin;
           create role authenticated nologin;
           create role service_role nologin;
+          create role supabase_auth_admin nologin;
           create schema auth;
-          create table auth.users (id uuid primary key);
+          create table auth.users (id uuid primary key, email text);
           create function auth.uid()
           returns uuid
           language sql

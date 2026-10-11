@@ -1,0 +1,30 @@
+name: Pi Diagnostics
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: pi-diagnostics
+  cancel-in-progress: true
+
+jobs:
+  diagnostics:
+    name: Collect Pi voice and screen diagnostics
+    # Public repo: only the owner's pushes/dispatches may reach these runners or secrets.
+    if: ${{ github.repository_owner == 'jtalborough' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && (github.event_name != 'workflow_dispatch' || github.actor == 'jtalborough') }}
+    environment: magpie-production
+    runs-on:
+      - self-hosted
+      - searchable-storage-pi
+    timeout-minutes: 5
+
+    env:
+      APP_DIR: ${{ vars.PI_APP_DIR }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Run Pi diagnostics
+        run: |
+          scripts/diagnose-pi-voice.sh

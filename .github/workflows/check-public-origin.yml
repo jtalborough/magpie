@@ -1,0 +1,34 @@
+name: Check public Magpie origin
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-public-magpie-origin
+  cancel-in-progress: true
+
+jobs:
+  boundary:
+    name: Verify customer signup and PWA boundary
+    # Public repo: only the owner's pushes/dispatches may reach these runners or secrets.
+    if: ${{ vars.MAGPIE_PUBLIC_ORIGIN != '' && github.repository_owner == 'jtalborough' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      MAGPIE_PUBLIC_ORIGIN: ${{ vars.MAGPIE_PUBLIC_ORIGIN }}
+      MAGPIE_ORIGIN_MODE: public
+
+    steps:
+      - name: Check out verifier
+        uses: actions/checkout@v5
+
+      - name: Verify public customer origin
+        run: scripts/check-secure-origin.sh
+
+      - name: Record healthy boundary
+        run: echo "Customer signup and PWA are public at $MAGPIE_PUBLIC_ORIGIN" >> "$GITHUB_STEP_SUMMARY"

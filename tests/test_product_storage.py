@@ -3245,7 +3245,7 @@ def test_hosted_container_example_is_authenticated_and_hardware_neutral() -> Non
     assert "magpie-runtime:/runtime:ro" in compose
     assert "LED_CONFIG: /runtime/runtime.json" in compose
     assert "/app/config/runtime.json:ro" not in compose
-    assert "ghcr.io/jtalborough/searchable-storage:main" not in compose
+    assert "ghcr.io/jtalborough/magpie:main" not in compose
     assert (
         "MAGPIE_IMAGE:?MAGPIE_IMAGE must be an immutable image reference"
         in compose

@@ -111,7 +111,7 @@ non-mutating preparation command:
 ```sh
 export MAGPIE_SUPABASE_URL=https://PROJECT_REF.supabase.co
 export MAGPIE_PUBLIC_ORIGIN=https://magpie.example.com
-export MAGPIE_IMAGE=ghcr.io/jtalborough/searchable-storage:sha-COMMIT
+export MAGPIE_IMAGE=ghcr.io/jtalborough/magpie:sha-COMMIT
 export MAGPIE_EXISTING_WORKSPACE_ID=EXISTING_WORKSPACE_UUID
 export SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 export SUPABASE_SERVICE_ROLE_KEY=...
@@ -144,7 +144,7 @@ For repeatable upgrades, use the guarded host-side promotion command instead
 of running the three Compose steps manually:
 
 ```sh
-export MAGPIE_IMAGE=ghcr.io/jtalborough/searchable-storage:sha-COMMIT
+export MAGPIE_IMAGE=ghcr.io/jtalborough/magpie:sha-COMMIT
 export MAGPIE_CONFIG_FILE=./config/container-hosted.json
 export SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 export SUPABASE_SERVICE_ROLE_KEY=...
@@ -159,10 +159,18 @@ restores the previously running image. A pinned `@sha256:...` image digest is
 also accepted; set `MAGPIE_EXPECTED_COMMIT` when commit verification is desired
 for a digest promotion.
 
-Hosted release automation (container publishing, guarded promotion, and
-self-hosted deploy runners) is intentionally not part of this public
-repository. Build the image with `docker build`, push it to your own registry,
-and promote it with `scripts/deploy-hosted.sh` from a trusted machine.
+The repository also provides a `Deploy hosted Magpie` workflow. A successful
+`Publish container` run on `main` triggers it automatically; it can also be
+dispatched with a publish run ID and exact commit. It runs on a self-hosted
+runner labelled `searchable-storage-central` inside the `magpie-production`
+environment, which requires reviewer approval and only accepts `main`.
+
+Because this repository is public, every job that touches a self-hosted runner
+or deployment secrets is guarded: it runs only in the owner's repository, never
+for `pull_request`/`pull_request_target` events, and manual dispatches must come
+from the owner. Fork pull requests also require approval before any workflow
+runs. Hostnames, workspace IDs, and credentials live in repository or
+environment secrets and variables, never in code.
 
 The preflight exits nonzero unless the service key can query every table needed
 by the storage graph, agent history, learned rules, photos, voice evidence, and

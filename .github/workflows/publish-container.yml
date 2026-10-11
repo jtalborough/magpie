@@ -1,0 +1,147 @@
+name: Publish container
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-container-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    # Public repo: only the owner's pushes/dispatches may reach these runners or secrets.
+    if: ${{ github.repository_owner == 'jtalborough' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up desktop verification runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install desktop verification dependencies
+        run: |
+          npm ci --prefix tests/desktop
+          node tests/desktop/node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Verify desktop state and rendered geometry
+        env:
+          NODE_PATH: ${{ github.workspace }}/tests/desktop/node_modules
+          DESKTOP_ARTIFACT_DIR: ${{ runner.temp }}/magpie-desktop
+        run: |
+          node tests/desktop_workspace_dom.cjs
+          node tests/desktop_workspace.cjs
+
+      - name: Keep desktop acceptance screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ github.sha }}
+          path: ${{ runner.temp }}/magpie-desktop
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Build and push digest candidate
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          outputs: >-
+            type=image,name=ghcr.io/${{ github.repository }},
+            push-by-digest=true,name-canonical=true,push=true
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_COMMIT=${{ github.sha }}
+            BUILD_BRANCH=${{ github.ref_name }}
+            BUILT_AT=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify complete hosted storage journey
+        timeout-minutes: 15
+        run: >-
+          python3 scripts/verify_hosted_local.py
+          --image "ghcr.io/${GITHUB_REPOSITORY}@${{ steps.build.outputs.digest }}"
+          --skip-build
+
+      - name: Publish verified image tags
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          set -euo pipefail
+          mapfile -t tags < <(
+            python3 -c \
+              'import json, os; print(*json.loads(os.environ["DOCKER_METADATA_OUTPUT_JSON"])["tags"], sep="\n")'
+          )
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "No release tags were generated" >&2
+            exit 1
+          fi
+          tag_args=()
+          for tag in "${tags[@]}"; do
+            tag_args+=(--tag "$tag")
+          done
+          docker buildx imagetools create \
+            "${tag_args[@]}" \
+            "${IMAGE_NAME}@${IMAGE_DIGEST}"
+
+      - name: Record verified release identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/magpie-release"
+          printf '%s\n' \
+            "ghcr.io/${GITHUB_REPOSITORY}@${{ steps.build.outputs.digest }}" \
+            > "$RUNNER_TEMP/magpie-release/image-ref"
+          printf '%s\n' "$GITHUB_SHA" \
+            > "$RUNNER_TEMP/magpie-release/commit"
+
+      - name: Publish verified release identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-image-${{ github.sha }}
+          path: ${{ runner.temp }}/magpie-release
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record published digest
+        run: |
+          echo "image_digest=${{ steps.build.outputs.digest }}"
+          echo "### Published container" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.meta.outputs.tags }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
