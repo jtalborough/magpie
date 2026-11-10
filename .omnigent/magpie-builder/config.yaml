@@ -1,0 +1,50 @@
+spec_version: 1
+name: magpie-builder
+description: >-
+  Builder for jtalborough/magpie. Takes one ticket from its lead (Rai), writes
+  the code and tests on a branch, opens a PR with evidence, and never merges or
+  deploys.
+
+executor:
+  type: omnigent
+  config:
+    harness: hermes
+
+instructions: instructions.md
+
+# Started by its lead as a child session on the lead's agent01 host, so it runs
+# as that Linux user. The model key comes from the host's env (1Password at
+# launch). Only variable NAMES here. GitHub comes from the Keeper broker.
+os_env:
+  type: caller_process
+  cwd: .
+  sandbox:
+    type: none
+    env_passthrough:
+      - RAI_LLM_KEY
+      - SSL_CERT_FILE
+      - REQUESTS_CA_BUNDLE
+
+tool_groups:
+  browser: false
+
+# Writes only to jtalborough/magpie, only through a PR branch. Merges are
+# refused (github_policy counts a merge as a write outside write_branches).
+guardrails:
+  ask_timeout: 86400
+  policies:
+    github_scope:
+      type: function
+      function:
+        path: omnigent.policies.builtins.github.github_policy
+        arguments:
+          write_repos:
+            - jtalborough/magpie
+          write_branches:
+            - no-direct-writes
+    blast_radius:
+      type: function
+      function:
+        path: omnigent.inner.nessie.policies.blast_radius
+        arguments:
+          gate_pushes: false
