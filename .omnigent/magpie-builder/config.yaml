@@ -28,8 +28,8 @@ os_env:
 tool_groups:
   browser: false
 
-# Writes only to jtalborough/magpie, only through a PR branch. Merges are
-# refused (github_policy counts a merge as a write outside write_branches).
+# Writes only to jtalborough/magpie, and only on builder/* branches. main and
+# merges are refused (github_policy counts a merge as a write outside write_branches).
 guardrails:
   ask_timeout: 86400
   policies:
@@ -41,7 +41,7 @@ guardrails:
           write_repos:
             - jtalborough/magpie
           write_branches:
-            - no-direct-writes
+            - builder/*
     blast_radius:
       type: function
       function:
