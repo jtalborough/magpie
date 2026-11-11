@@ -2261,10 +2261,16 @@ def create_app(
             return False, []
         response = source.get("response")
         response = response if isinstance(response, dict) else {}
+        nested_decision = response.get("decision")
+        find_sources = [response]
+        if isinstance(nested_decision, dict):
+            find_sources.append(nested_decision)
         queries = {
             re.sub(r"\s+", " ", str(value)).strip().casefold()
+            for source_body in find_sources
             for value in (
-                response.get("original_command"),
+                source_body.get("original_command"),
+                source_body.get("query"),
                 source.get("command"),
                 fallback_command,
             )
@@ -2272,10 +2278,11 @@ def create_app(
         }
         if not queries:
             return False, []
-        response_active_finds = response.get("active_finds")
-        response_active_finds = (
-            response_active_finds if isinstance(response_active_finds, list) else []
-        )
+        response_active_finds: list[object] = []
+        for source_body in find_sources:
+            raw_finds = source_body.get("active_finds")
+            if isinstance(raw_finds, list):
+                response_active_finds.extend(raw_finds)
         candidate_entry_ids = [
             int(entry.get("id") or 0)
             for entry in response_active_finds
@@ -2305,6 +2312,7 @@ def create_app(
                 ).strip().casefold()
                 remove_entry = (
                     str(entry.get("kind") or "") == "put_away"
+                    and not entry.get("confirmed")
                     and (
                         int(entry.get("id") or 0) == target_entry_id
                         if target_entry_id
@@ -2355,23 +2363,31 @@ def create_app(
             return False
         response = source.get("response")
         response = response if isinstance(response, dict) else {}
+        nested_decision = response.get("decision")
+        find_sources = [response]
+        if isinstance(nested_decision, dict):
+            find_sources.append(nested_decision)
         queries = {
             re.sub(r"\s+", " ", str(value)).strip().casefold()
+            for source_body in find_sources
             for value in (
-                response.get("original_command"),
+                source_body.get("original_command"),
+                source_body.get("query"),
                 source.get("command"),
             )
             if str(value or "").strip()
         }
-        response_active_finds = response.get("active_finds")
-        response_active_finds = (
-            response_active_finds if isinstance(response_active_finds, list) else []
-        )
+        response_active_finds: list[object] = []
+        for source_body in find_sources:
+            raw_finds = source_body.get("active_finds")
+            if isinstance(raw_finds, list):
+                response_active_finds.extend(raw_finds)
         candidate_entry_ids = {
             int(entry.get("id") or 0)
             for entry in response_active_finds
             if isinstance(entry, dict)
             and str(entry.get("kind") or "") == "put_away"
+            and not entry.get("confirmed")
             and re.sub(
                 r"\s+",
                 " ",
@@ -2414,6 +2430,15 @@ def create_app(
         if not targets:
             return False
 
+        # A put-away proposed from a current location is a move the user may
+        # still relocate; keep that find. A plain put-away is finished on
+        # confirm, so do not mark it confirmed (removal skips confirmed finds).
+        keep_after_confirm = any(
+            str(body.get("current_location_id") or "").strip()
+            for body in find_sources
+            if isinstance(body, dict)
+        )
+
         changed = False
         with active_find_lock:
             state = _active_find_state()
@@ -2448,6 +2473,8 @@ def create_app(
                             "path": _path_for(str(target["location_id"])),
                         }
                     )
+                    if keep_after_confirm:
+                        entry["confirmed"] = True
                     changed = True
         if changed:
             _persist_active_find_state()
@@ -13153,6 +13180,10 @@ self.addEventListener("fetch", (event) => {
             if source_interaction_id is not None
             else None
         )
+        _bind_confirmed_put_away_find(
+            source_interaction_id=source_interaction_id,
+            applied=applied,
+        )
         active_find_removed, active_find_errors = _remove_pending_put_away_find(
             source_interaction,
             fallback_command=command,
@@ -15033,6 +15064,9 @@ self.addEventListener("fetch", (event) => {
             locked_destination_id = None
         photos = [p for pid in request.photo_ids if (p := store.photo(pid)) is not None]
         def logged(response: dict[str, object]) -> dict[str, object]:
+            current_location_id = str(request.current_location_id or "").strip()
+            if current_location_id:
+                response["current_location_id"] = current_location_id
             plan = response.get("plan")
             if isinstance(plan, list) and plan:
                 _supersede_pending_agent_plans()
