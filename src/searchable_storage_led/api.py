@@ -2430,6 +2430,15 @@ def create_app(
         if not targets:
             return False
 
+        # A put-away proposed from a current location is a move the user may
+        # still relocate; keep that find. A plain put-away is finished on
+        # confirm, so do not mark it confirmed (removal skips confirmed finds).
+        keep_after_confirm = any(
+            str(body.get("current_location_id") or "").strip()
+            for body in find_sources
+            if isinstance(body, dict)
+        )
+
         changed = False
         with active_find_lock:
             state = _active_find_state()
@@ -2464,7 +2473,8 @@ def create_app(
                             "path": _path_for(str(target["location_id"])),
                         }
                     )
-                    entry["confirmed"] = True
+                    if keep_after_confirm:
+                        entry["confirmed"] = True
                     changed = True
         if changed:
             _persist_active_find_state()
@@ -15054,6 +15064,9 @@ self.addEventListener("fetch", (event) => {
             locked_destination_id = None
         photos = [p for pid in request.photo_ids if (p := store.photo(pid)) is not None]
         def logged(response: dict[str, object]) -> dict[str, object]:
+            current_location_id = str(request.current_location_id or "").strip()
+            if current_location_id:
+                response["current_location_id"] = current_location_id
             plan = response.get("plan")
             if isinstance(plan, list) and plan:
                 _supersede_pending_agent_plans()
