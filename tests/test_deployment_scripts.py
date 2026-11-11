@@ -80,6 +80,10 @@ def test_edge_pairing_creator_only_sends_digest_and_writes_private_file(
 def test_hosted_verifier_requires_complete_client_surfaces(monkeypatch) -> None:
     verifier = _load_hosted_verifier()
     bodies = {
+        "/": (
+            b'<style id="desktopWorkspaceStyles"></style>'
+            b'initializeDesktopWorkspace() window.magpieMobileRedirect'
+        ),
         "/mobile": (
             b'<textarea id="command"></textarea><nav data-product-nav></nav>'
             b'place_configuration_ui_required result.places_url'
@@ -115,7 +119,7 @@ def test_hosted_verifier_requires_complete_client_surfaces(monkeypatch) -> None:
         {"Authorization": "Bearer test"},
     )
 
-    assert requested == ["/mobile", "/storage?view=places", "/kiosk", "/account"]
+    assert requested == ["/", "/mobile", "/storage?view=places", "/kiosk", "/account"]
 
     bodies["/kiosk"] = b'<main id="kioskMain"></main>'
     with pytest.raises(verifier.SmokeFailure, match="/kiosk is incomplete"):

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from searchable_storage_led.api import create_app
 from searchable_storage_led.config import LedConfig, ZebraConfig
-from searchable_storage_led.locations import LocationNameConflictError
+from searchable_storage_led.locations import Location, LocationNameConflictError
 from searchable_storage_led.repositories import StorageRepositories
 from searchable_storage_led.store import InventoryStore
 
@@ -332,6 +332,9 @@ def test_cabinet_flash_uses_authoritative_location_binding(tmp_path) -> None:
         encoding="utf-8",
     )
     repositories = StorageRepositories.sqlite(tmp_path / "inventory.db")
+    repositories.locations.upsert(
+        Location(id="B001", type="bin", label="B001", accepts_items=True)
+    )
     client = TestClient(
         create_app(
             LedConfig(

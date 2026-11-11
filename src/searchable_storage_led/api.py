@@ -2261,10 +2261,16 @@ def create_app(
             return False, []
         response = source.get("response")
         response = response if isinstance(response, dict) else {}
+        nested_decision = response.get("decision")
+        find_sources = [response]
+        if isinstance(nested_decision, dict):
+            find_sources.append(nested_decision)
         queries = {
             re.sub(r"\s+", " ", str(value)).strip().casefold()
+            for source_body in find_sources
             for value in (
-                response.get("original_command"),
+                source_body.get("original_command"),
+                source_body.get("query"),
                 source.get("command"),
                 fallback_command,
             )
@@ -2272,10 +2278,11 @@ def create_app(
         }
         if not queries:
             return False, []
-        response_active_finds = response.get("active_finds")
-        response_active_finds = (
-            response_active_finds if isinstance(response_active_finds, list) else []
-        )
+        response_active_finds: list[object] = []
+        for source_body in find_sources:
+            raw_finds = source_body.get("active_finds")
+            if isinstance(raw_finds, list):
+                response_active_finds.extend(raw_finds)
         candidate_entry_ids = [
             int(entry.get("id") or 0)
             for entry in response_active_finds
@@ -2305,6 +2312,7 @@ def create_app(
                 ).strip().casefold()
                 remove_entry = (
                     str(entry.get("kind") or "") == "put_away"
+                    and not entry.get("confirmed")
                     and (
                         int(entry.get("id") or 0) == target_entry_id
                         if target_entry_id
@@ -2355,23 +2363,31 @@ def create_app(
             return False
         response = source.get("response")
         response = response if isinstance(response, dict) else {}
+        nested_decision = response.get("decision")
+        find_sources = [response]
+        if isinstance(nested_decision, dict):
+            find_sources.append(nested_decision)
         queries = {
             re.sub(r"\s+", " ", str(value)).strip().casefold()
+            for source_body in find_sources
             for value in (
-                response.get("original_command"),
+                source_body.get("original_command"),
+                source_body.get("query"),
                 source.get("command"),
             )
             if str(value or "").strip()
         }
-        response_active_finds = response.get("active_finds")
-        response_active_finds = (
-            response_active_finds if isinstance(response_active_finds, list) else []
-        )
+        response_active_finds: list[object] = []
+        for source_body in find_sources:
+            raw_finds = source_body.get("active_finds")
+            if isinstance(raw_finds, list):
+                response_active_finds.extend(raw_finds)
         candidate_entry_ids = {
             int(entry.get("id") or 0)
             for entry in response_active_finds
             if isinstance(entry, dict)
             and str(entry.get("kind") or "") == "put_away"
+            and not entry.get("confirmed")
             and re.sub(
                 r"\s+",
                 " ",
@@ -2448,6 +2464,7 @@ def create_app(
                             "path": _path_for(str(target["location_id"])),
                         }
                     )
+                    entry["confirmed"] = True
                     changed = True
         if changed:
             _persist_active_find_state()
@@ -13152,6 +13169,10 @@ self.addEventListener("fetch", (event) => {
             store.assistant_interaction(source_interaction_id)
             if source_interaction_id is not None
             else None
+        )
+        _bind_confirmed_put_away_find(
+            source_interaction_id=source_interaction_id,
+            applied=applied,
         )
         active_find_removed, active_find_errors = _remove_pending_put_away_find(
             source_interaction,
